@@ -52,7 +52,10 @@ def call_llm_json(
 
 def parse_json_object(text: str) -> dict[str, Any]:
     candidate = _extract_json_object_text(text)
-    parsed = json.loads(candidate)
+    try:
+        parsed = json.loads(candidate)
+    except json.JSONDecodeError:
+        parsed = json.loads(_extract_first_balanced_json_object(text))
     if not isinstance(parsed, dict):
         raise ValueError("LLM response JSON must be an object")
     return parsed
@@ -163,6 +166,44 @@ def _extract_json_object_text(text: str) -> str:
     if not match:
         return stripped
     return match.group(0)
+
+
+def _extract_first_balanced_json_object(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+
+    start = stripped.find("{")
+    if start < 0:
+        return stripped
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(stripped)):
+        char = stripped[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return stripped[start : index + 1]
+    return stripped[start:]
 
 
 def _ssl_context() -> ssl.SSLContext:

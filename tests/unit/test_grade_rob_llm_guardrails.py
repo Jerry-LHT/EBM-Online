@@ -5,6 +5,7 @@ from ebm_backend.online_pipeline.infrastructure.methods.grade.risk_of_bias impor
 
 def _payload(*footnotes: str) -> dict:
     return {
+        "input_mode": "sof_extraction_ablation",
         "sof_context": {
             "footnote_texts": list(footnotes),
             "comment_text": "",
@@ -171,3 +172,68 @@ def test_normalize_unclear_severity_matches_benchmark_semantics():
     assert result["severity"] == "unclear"
     assert result["levels"] == "unclear"
     assert result["level_evaluable"] is False
+
+
+def test_compact_payload_excludes_sof_context_by_default():
+    result = method_llm._compact_payload(
+        domain_evidence={
+            "sof_context": {
+                "footnote_texts": ["Downgraded one level for risk of bias"],
+                "source_summary_of_findings_span_text": "Low certainty",
+            },
+            "risk_of_bias_assessments": [],
+        },
+        evidence_body={},
+    )
+
+    assert result["input_mode"] == "online_upstream"
+    assert "sof_context" not in result
+    assert "risk_of_bias_summary" in result
+
+
+def test_compact_payload_can_include_sof_context_for_ablation():
+    result = method_llm._compact_payload(
+        domain_evidence={
+            "sof_context": {
+                "footnote_texts": ["Downgraded one level for risk of bias"],
+                "source_summary_of_findings_span_text": "Low certainty",
+            },
+            "risk_of_bias_assessments": [],
+        },
+        evidence_body={},
+        include_sof_context=True,
+    )
+
+    assert result["input_mode"] == "sof_extraction_ablation"
+    assert result["sof_context"]["footnote_texts"] == ["Downgraded one level for risk of bias"]
+
+
+def test_summarize_rob_assessments_counts_overall_and_domains():
+    result = method_llm._summarize_rob_assessments(
+        [
+            {
+                "study_id": "A",
+                "overall": "high_risk",
+                "domains": [
+                    {"domain_id": "allocation_concealment", "domain": "Allocation concealment", "judgement": "high_risk"},
+                    {"domain_id": "blinding_outcome_assessment", "domain": "Blinding outcome", "judgement": "unclear_risk"},
+                ],
+            },
+            {
+                "study_id": "B",
+                "overall": "low_risk",
+                "domains": [
+                    {"domain_id": "allocation_concealment", "domain": "Allocation concealment", "judgement": "low_risk"},
+                    {"domain_id": "blinding_outcome_assessment", "domain": "Blinding outcome", "judgement": "high_risk"},
+                ],
+            },
+        ]
+    )
+
+    assert result["study_count_with_rob"] == 2
+    assert result["overall_counts"] == {"high_risk": 1, "low_risk": 1}
+    assert result["overall_high_or_unclear_count"] == 1
+    assert result["overall_high_or_unclear_ratio"] == 0.5
+    assert result["high_risk_study_ids"] == ["A"]
+    assert result["domain_counts"][0]["domain_id"] == "blinding_outcome_assessment"
+    assert result["domain_counts"][0]["high_or_unclear_count"] == 2

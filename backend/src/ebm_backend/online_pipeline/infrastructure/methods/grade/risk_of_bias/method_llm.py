@@ -120,9 +120,14 @@ class Method(GradeDomainMethod):
         self.config = load_llm_config()
         self.delay_seconds = _float_env("GRADE_ROB_LLM_DELAY_SECONDS", 0.0)
         self.max_retries = int(_float_env("GRADE_ROB_LLM_MAX_RETRIES", 4))
+        self.allow_sof_context = _bool_env("GRADE_ROB_ALLOW_SOF_CONTEXT", False)
 
     def run(self, *, domain_evidence: dict[str, Any], evidence_body: dict[str, Any]) -> dict[str, Any]:
-        payload = _compact_payload(domain_evidence=domain_evidence, evidence_body=evidence_body)
+        payload = _compact_payload(
+            domain_evidence=domain_evidence,
+            evidence_body=evidence_body,
+            include_sof_context=self.allow_sof_context,
+        )
         parsed = self._call_with_retries(payload)
         judgement_payload = _normalize_judgement(parsed)
         return _apply_sof_guardrails(judgement_payload, payload)
@@ -135,8 +140,8 @@ class Method(GradeDomainMethod):
             try:
                 return call_llm_json(
                     config=self.config,
-                    system=_system_prompt(),
-                    prompt=_user_prompt(payload),
+                    system=_system_prompt(include_sof_context=self.allow_sof_context),
+                    prompt=_user_prompt(payload, include_sof_context=self.allow_sof_context),
                 )
             except HTTPError as exc:
                 last_error = exc
@@ -147,16 +152,22 @@ class Method(GradeDomainMethod):
         raise RuntimeError("LLM call failed after retries") from last_error
 
 
-def _system_prompt() -> str:
+def _system_prompt(*, include_sof_context: bool = False) -> str:
+    if include_sof_context:
+        return (
+            "You are extracting the GRADE risk-of-bias judgement for one Summary of Findings row. "
+            "This diagnostic mode includes SoF context and may include author downgrade rationales. "
+            "Return exactly one JSON object and no prose outside JSON."
+        )
     return (
-        "You are evaluating the GRADE risk-of-bias domain for one Summary of Findings row. "
-        "This is not a study-level RoB1 classification task. The task is to decide whether the evidence body "
-        "for this outcome should be downgraded for risk of bias in GRADE. Use only the supplied JSON. "
-        "Return exactly one JSON object and no prose outside JSON."
+        "You are evaluating the GRADE risk-of-bias domain for one evidence body using upstream pipeline outputs. "
+        "This is not a study-level RoB1 classification task. Decide whether certainty should be downgraded for "
+        "risk of bias using only the supplied meta-analysis context, effect estimate, included studies, and "
+        "study-level risk-of-bias assessments. Return exactly one JSON object and no prose outside JSON."
     )
 
 
-def _user_prompt(payload: dict[str, Any]) -> str:
+def _user_prompt(payload: dict[str, Any], *, include_sof_context: bool = False) -> str:
     schema = {
         "domain": "risk_of_bias",
         "downgraded": "no | yes | unclear",
@@ -170,39 +181,77 @@ def _user_prompt(payload: dict[str, Any]) -> str:
         "- none/no/0: do not downgrade this SoF row for risk of bias.",
         "- serious/yes/1: downgrade one GRADE level for risk of bias.",
         "- very_serious/yes/2 or 3: downgrade two or more GRADE levels for risk of bias.",
-        "- unclear means downgraded=yes, severity=unclear, levels=unclear, level_evaluable=false: the SoF wording says there is a risk-of-bias downgrade, but the RoB-specific level is ambiguous.",
+        "- unclear means downgraded=yes, severity=unclear, levels=unclear, level_evaluable=false: risk-of-bias concerns likely contributed to downgrading, but the RoB-specific level cannot be determined from the allowed input.",
         "",
         "Important policy:",
+        "- Use only the supplied JSON. Do not use review IDs, memorized SoF tables, benchmark labels, or outside knowledge.",
         "- Study-level high risk of bias, open-label design, unclear randomisation, or lack of blinding does not automatically mean a GRADE risk-of-bias downgrade.",
-        "- Prefer explicit SoF footnotes/rationale that say the row was downgraded or rated down for risk of bias, serious/very serious risk of bias, or a named bias domain such as selection/performance/detection/attrition/reporting bias.",
-        "- If a footnote only describes bias concerns but does not say that they caused downgrading, return none/no/0.",
-        "- If a footnote says not downgraded for risk of bias or that risk of bias did not influence certainty, return none/no/0.",
-        "- If a footnote says downgraded due to risk of bias but does not state a RoB-specific level, return downgraded=yes with severity=unclear and level_evaluable=false.",
-        "- If one total downgrade statement combines risk of bias with imprecision, inconsistency, indirectness, or publication bias, return unclear unless the RoB-specific level is explicit.",
-        "- Wording like 'some risk of selection bias' is ambiguous for this benchmark even when it says 'downgraded one level'; return severity=unclear.",
-        "- Do not treat 'unclear randomisation/blinding' alone as risk-of-bias downgrade unless the text also names risk of bias or a bias domain.",
+        "- Start from risk_of_bias_summary, then use individual assessments only to understand which domains and studies drive the summary.",
+        "- Consider both prevalence and relevance: how many included studies are high/unclear, which domains are affected, whether those domains plausibly influence this outcome, and whether RoB data are missing.",
+        "- For objective outcomes, lack of participant/personnel blinding alone is usually weaker evidence; detection bias, attrition, selective reporting, allocation problems, and cluster/other-bias issues can still justify concern.",
+        "- Return none/no/0 when RoB concerns are absent, clearly isolated, or unlikely to lower certainty for this outcome.",
+        "- Return serious/yes/1 when RoB concerns are important and their impact is interpretable enough to support one GRADE level.",
+        "- Return very_serious/yes/2 when RoB concerns are pervasive or severe across the evidence body.",
+        "- Return unclear when the upstream RoB pattern indicates likely downgrade but the exact RoB-specific level is not reliably inferable from these inputs.",
+        "- When the judgement depends on author SoF phrasing that is not available in online_upstream mode, prefer unclear over inventing a precise level.",
         "- Do not use benchmark gold labels; they are not provided.",
-        "",
-        "Return JSON matching this schema:",
-        json.dumps(schema, ensure_ascii=False),
-        "",
-        "Input JSON:",
-        json.dumps(payload, ensure_ascii=False, sort_keys=True),
     ]
+    if include_sof_context:
+        guidance.extend(
+            [
+                "- Diagnostic extraction mode: SoF context is included, so prefer explicit SoF downgrade wording when present.",
+                "- If a footnote says downgraded due to risk of bias but does not state a RoB-specific level, return downgraded=yes with severity=unclear and level_evaluable=false.",
+                "- If one total downgrade statement combines risk of bias with imprecision, inconsistency, indirectness, or publication bias, return unclear unless the RoB-specific level is explicit.",
+            ]
+        )
+    guidance.extend(
+        [
+            "",
+            "Return JSON matching this schema:",
+            json.dumps(schema, ensure_ascii=False),
+            "",
+            "Input JSON:",
+            json.dumps(payload, ensure_ascii=False, sort_keys=True),
+        ]
+    )
     return "\n".join(guidance)
 
 
-def _compact_payload(*, domain_evidence: dict[str, Any], evidence_body: dict[str, Any]) -> dict[str, Any]:
-    sof_context = _dict_value(domain_evidence.get("sof_context") or evidence_body.get("sof_context"))
+def _compact_payload(
+    *,
+    domain_evidence: dict[str, Any],
+    evidence_body: dict[str, Any],
+    include_sof_context: bool = False,
+) -> dict[str, Any]:
     effect_estimate = _dict_value(domain_evidence.get("effect_estimate") or evidence_body.get("effect_estimate"))
+    analysis_setting = _dict_value(evidence_body.get("analysis_setting") or domain_evidence.get("analysis_setting"))
     assessments = [
         _compact_assessment(row)
         for row in _list_value(domain_evidence.get("risk_of_bias_assessments"))
         if isinstance(row, dict)
     ]
-    return {
+    payload = {
         "domain": DOMAIN,
-        "sof_context": {
+        "input_mode": "sof_extraction_ablation" if include_sof_context else "online_upstream",
+        "analysis_context": _compact_analysis_context(analysis_setting),
+        "effect_estimate": {
+            "study_count": effect_estimate.get("study_count") or domain_evidence.get("study_count"),
+            "participant_count": effect_estimate.get("participant_count") or domain_evidence.get("participant_count"),
+            "effect_measure": effect_estimate.get("effect_measure"),
+            "data_type": effect_estimate.get("data_type") or analysis_setting.get("data_type"),
+            "effect_value": effect_estimate.get("effect_value"),
+            "ci_lower": effect_estimate.get("ci_lower"),
+            "ci_upper": effect_estimate.get("ci_upper"),
+            "included_study_ids": effect_estimate.get("included_study_ids") or domain_evidence.get("included_study_ids") or [],
+        },
+        "study_join_coverage": _compact_join_coverage(domain_evidence.get("study_join_coverage")),
+        "risk_of_bias_missing_study_ids": domain_evidence.get("risk_of_bias_missing_study_ids") or [],
+        "risk_of_bias_summary": _summarize_rob_assessments(assessments),
+        "risk_of_bias_assessments": assessments,
+    }
+    if include_sof_context:
+        sof_context = _dict_value(domain_evidence.get("sof_context") or evidence_body.get("sof_context"))
+        payload["sof_context"] = {
             "table_title": sof_context.get("table_title"),
             "outcome_name": sof_context.get("outcome_name"),
             "relative_effect_text": sof_context.get("relative_effect_text"),
@@ -211,20 +260,8 @@ def _compact_payload(*, domain_evidence: dict[str, Any], evidence_body: dict[str
             "comment_text": sof_context.get("comment_text"),
             "footnote_texts": sof_context.get("footnote_texts") or [],
             "source_summary_of_findings_span_text": sof_context.get("source_summary_of_findings_span_text"),
-        },
-        "effect_estimate": {
-            "study_count": effect_estimate.get("study_count") or domain_evidence.get("study_count"),
-            "participant_count": effect_estimate.get("participant_count") or domain_evidence.get("participant_count"),
-            "effect_measure": effect_estimate.get("effect_measure"),
-            "effect_value": effect_estimate.get("effect_value"),
-            "ci_lower": effect_estimate.get("ci_lower"),
-            "ci_upper": effect_estimate.get("ci_upper"),
-            "included_study_ids": effect_estimate.get("included_study_ids") or domain_evidence.get("included_study_ids") or [],
-        },
-        "study_join_coverage": domain_evidence.get("study_join_coverage") or {},
-        "risk_of_bias_missing_study_ids": domain_evidence.get("risk_of_bias_missing_study_ids") or [],
-        "risk_of_bias_assessments": assessments,
-    }
+        }
+    return payload
 
 
 def _compact_assessment(assessment: dict[str, Any]) -> dict[str, Any]:
@@ -246,6 +283,102 @@ def _compact_assessment(assessment: dict[str, Any]) -> dict[str, Any]:
         "matched_study_id": assessment.get("matched_study_id"),
         "overall": assessment.get("overall"),
         "domains": domains,
+    }
+
+
+def _summarize_rob_assessments(assessments: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(assessments)
+    overall_counts: dict[str, int] = {}
+    domain_counts: dict[str, dict[str, int]] = {}
+    high_risk_study_ids: list[Any] = []
+    unclear_risk_study_ids: list[Any] = []
+    domain_names: dict[str, Any] = {}
+
+    for assessment in assessments:
+        study_id = assessment.get("study_id") or assessment.get("matched_study_id")
+        overall = _normalize_text(assessment.get("overall"))
+        if overall:
+            overall_counts[overall] = overall_counts.get(overall, 0) + 1
+        if overall == "high_risk":
+            high_risk_study_ids.append(study_id)
+        elif overall == "unclear_risk":
+            unclear_risk_study_ids.append(study_id)
+
+        for domain in _list_value(assessment.get("domains")):
+            if not isinstance(domain, dict):
+                continue
+            domain_id = str(domain.get("domain_id") or domain.get("domain") or "").strip()
+            if not domain_id:
+                continue
+            domain_names.setdefault(domain_id, domain.get("domain"))
+            judgement_value = _normalize_text(domain.get("judgement"))
+            if not judgement_value:
+                continue
+            counts = domain_counts.setdefault(domain_id, {})
+            counts[judgement_value] = counts.get(judgement_value, 0) + 1
+
+    domain_rows = []
+    for domain_id, counts in domain_counts.items():
+        high = counts.get("high_risk", 0)
+        unclear = counts.get("unclear_risk", 0)
+        domain_rows.append(
+            {
+                "domain_id": domain_id,
+                "domain": domain_names.get(domain_id),
+                "counts": counts,
+                "high_or_unclear_count": high + unclear,
+                "high_or_unclear_ratio": _ratio(high + unclear, total),
+            }
+        )
+
+    domain_rows.sort(
+        key=lambda row: (
+            -int(row.get("high_or_unclear_count") or 0),
+            str(row.get("domain_id") or ""),
+        )
+    )
+
+    return {
+        "study_count_with_rob": total,
+        "overall_counts": overall_counts,
+        "overall_high_or_unclear_count": overall_counts.get("high_risk", 0) + overall_counts.get("unclear_risk", 0),
+        "overall_high_or_unclear_ratio": _ratio(
+            overall_counts.get("high_risk", 0) + overall_counts.get("unclear_risk", 0),
+            total,
+        ),
+        "high_risk_study_ids": high_risk_study_ids[:30],
+        "unclear_risk_study_ids": unclear_risk_study_ids[:30],
+        "domain_counts": domain_rows,
+    }
+
+
+def _compact_analysis_context(analysis_setting: dict[str, Any]) -> dict[str, Any]:
+    comparison = _dict_value(analysis_setting.get("comparison"))
+    outcome = _dict_value(analysis_setting.get("outcome"))
+    timepoint = _dict_value(analysis_setting.get("timepoint"))
+    subgroup = _dict_value(analysis_setting.get("subgroup"))
+    return {
+        "analysis_name": analysis_setting.get("analysis_name"),
+        "analysis_group_name": analysis_setting.get("analysis_group_name"),
+        "comparison_text": comparison.get("text"),
+        "outcome_label": outcome.get("label"),
+        "outcome_measure": outcome.get("measure"),
+        "benefit_direction": outcome.get("benefit_direction"),
+        "timepoint_label": timepoint.get("label"),
+        "subgroup_label": subgroup.get("level"),
+        "data_type": analysis_setting.get("data_type"),
+        "effect_measure": analysis_setting.get("effect_measure"),
+        "eligible_study_ids": analysis_setting.get("eligible_study_ids") or [],
+    }
+
+
+def _compact_join_coverage(value: Any) -> dict[str, Any]:
+    coverage = _dict_value(value)
+    return {
+        "requested_study_count": coverage.get("requested_study_count"),
+        "matched_risk_of_bias_count": coverage.get("matched_risk_of_bias_count"),
+        "missing_risk_of_bias_count": coverage.get("missing_risk_of_bias_count"),
+        "match_method_counts": coverage.get("match_method_counts") or {},
     }
 
 
@@ -282,6 +415,8 @@ def _normalize_judgement(parsed: dict[str, Any]) -> dict[str, Any]:
 
 
 def _apply_sof_guardrails(judgement_payload: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("input_mode") != "sof_extraction_ablation":
+        return judgement_payload
     lines = _sof_evidence_lines(payload)
     if not lines:
         return judgement_payload
@@ -458,6 +593,19 @@ def _float_env(name: str, default: float) -> float:
     if raw_value is None or raw_value.strip() == "":
         return default
     return float(raw_value)
+
+
+def _ratio(numerator: int, denominator: int) -> float | None:
+    if denominator <= 0:
+        return None
+    return round(numerator / denominator, 4)
+
+
+def _bool_env(name: str, default: bool) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None or raw_value.strip() == "":
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _dict_value(value: Any) -> dict[str, Any]:

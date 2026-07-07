@@ -74,7 +74,28 @@ def evaluate_match_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
             "critical_fields_complete_rate": _critical_fields_complete_rate(complete_instances, instance_count=len(instance_ids)),
         }
     )
+    metrics.update(_pio_alias_metrics(metrics))
     return metrics
+
+
+def _pio_alias_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
+    """Expose concise P/I/O aliases while preserving existing metric names."""
+    aliases: dict[str, Any] = {}
+    field_aliases = {
+        "p": "population",
+        "i": "intervention_comparator",
+        "o": "outcomes",
+    }
+    for alias, field in field_aliases.items():
+        for suffix in ("precision", "recall", "f1", "tp", "fp", "fn"):
+            aliases[f"{alias}_{suffix}"] = metrics[f"{field}_{suffix}"]
+    aliases["pio_macro_precision"] = metrics["macro_precision"]
+    aliases["pio_macro_recall"] = metrics["macro_recall"]
+    aliases["pio_macro_f1"] = metrics["macro_f1"]
+    aliases["pio_micro_precision"] = metrics["micro_precision"]
+    aliases["pio_micro_recall"] = metrics["micro_recall"]
+    aliases["pio_micro_f1"] = metrics["micro_f1"]
+    return aliases
 
 
 def _precision(tp: int, fp: int) -> float:

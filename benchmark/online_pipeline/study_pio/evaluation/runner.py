@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,7 @@ from ebm_backend.online_pipeline.domain.article import (
 from ebm_backend.online_pipeline.domain.question import QuestionPICO
 from ebm_backend.online_pipeline.domain.study_characteristics import StudyPIOCharacteristics
 
-from benchmark.online_pipeline.shared.jsonl import read_jsonl, write_jsonl
+from benchmark.online_pipeline.shared.jsonl import append_jsonl, read_jsonl, write_jsonl
 from benchmark.online_pipeline.shared.method_loader import load_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
@@ -55,11 +56,16 @@ def run_benchmark(
         gold_by_id = {str(instance["instance_id"]): gold_by_id[str(instance["instance_id"])] for instance in instances}
 
     completed_before_resume = _completed_instance_ids(run_dir / "judge_matches.jsonl") if resume else set()
+    prediction_failures_path = run_dir / "prediction_failures.jsonl"
     predictions = _predictions(
         instances=instances,
         gold_by_id=gold_by_id,
         articles_by_id=articles_by_id,
         method=method,
+        llm_config=llm_config,
+        run_dir=run_dir,
+        resume=resume,
+        workers=workers,
     )
     match_rows = judge_predictions(
         instances=instances,
@@ -76,9 +82,19 @@ def run_benchmark(
     write_jsonl(run_dir / "predictions.jsonl", predictions)
     write_json(run_dir / "metrics.json", metrics)
 
-    completed_after_run = _completed_instance_ids(run_dir / "judge_matches.jsonl")
-    failure_count = _failure_count(run_dir / "judge_failures.jsonl")
     requested_instance_ids = {str(instance["instance_id"]) for instance in instances}
+    completed_after_run = _completed_instance_ids(run_dir / "judge_matches.jsonl")
+    completed_fields_after_run = _completed_fields_by_instance(run_dir / "judge_matches.jsonl")
+    judge_failure_count = _active_judge_failure_count(
+        run_dir / "judge_failures.jsonl",
+        requested_ids=requested_instance_ids,
+        completed_fields=completed_fields_after_run,
+    )
+    prediction_failure_count = _active_prediction_failure_count(
+        prediction_failures_path,
+        requested_ids=requested_instance_ids,
+        completed_ids={str(row.get("instance_id") or "") for row in predictions},
+    )
     run_manifest = {
         "module_name": MODULE_NAME,
         "run_id": resolved_run_id,
@@ -90,7 +106,11 @@ def run_benchmark(
         "requested_count": len(instances),
         "completed_count": len(completed_after_run & requested_instance_ids),
         "skipped_by_resume_count": len(completed_before_resume & requested_instance_ids),
-        "failed_count": failure_count or max(0, len(instances) - len(completed_after_run & requested_instance_ids)),
+        "failed_count": judge_failure_count
+        or prediction_failure_count
+        or max(0, len(instances) - len(completed_after_run & requested_instance_ids)),
+        "prediction_failed_count": prediction_failure_count,
+        "judge_failed_count": judge_failure_count,
     }
     write_json(run_dir / "run_manifest.json", run_manifest)
 
@@ -149,11 +169,25 @@ def _predictions(
     gold_by_id: dict[str, dict[str, Any]],
     articles_by_id: dict[str, dict[str, Any]],
     method: str,
+    llm_config: str | Path,
+    run_dir: Path,
+    resume: bool,
+    workers: int,
 ) -> list[dict[str, Any]]:
     if method in {"gold", "study_pio.gold"}:
         return _gold_predictions(instances=instances, gold_by_id=gold_by_id, articles_by_id=articles_by_id)
     method_obj = load_method(method, default_module="study_pio")
-    return _method_predictions(instances=instances, articles_by_id=articles_by_id, method_obj=method_obj)
+    if hasattr(method_obj, "configure_for_benchmark"):
+        method_obj.configure_for_benchmark(llm_config=llm_config, workers=workers, run_dir=run_dir, resume=resume)
+    return _method_predictions(
+        instances=instances,
+        articles_by_id=articles_by_id,
+        method_obj=method_obj,
+        run_dir=run_dir,
+        resume=resume,
+        workers=workers,
+        method=method,
+    )
 
 
 def _gold_predictions(
@@ -186,9 +220,26 @@ def _method_predictions(
     instances: list[dict[str, Any]],
     articles_by_id: dict[str, dict[str, Any]],
     method_obj: Any,
+    run_dir: Path,
+    resume: bool,
+    workers: int,
+    method: str,
 ) -> list[dict[str, Any]]:
-    predictions = []
-    for instance in instances:
+    predictions_path = run_dir / "predictions.jsonl"
+    failures_path = run_dir / "prediction_failures.jsonl"
+    requested_ids = {str(instance["instance_id"]) for instance in instances}
+    predictions = _existing_predictions(predictions_path, requested_ids) if resume else []
+    completed_ids = {str(row["instance_id"]) for row in predictions}
+    if resume:
+        write_jsonl(predictions_path, predictions, sort_keys=False)
+        _rewrite_active_failures(failures_path, requested_ids=requested_ids, completed_ids=completed_ids)
+    else:
+        predictions_path.unlink(missing_ok=True)
+        failures_path.unlink(missing_ok=True)
+
+    pending_instances = [instance for instance in instances if str(instance["instance_id"]) not in completed_ids]
+
+    def predict_one(instance: dict[str, Any]) -> dict[str, Any]:
         instance_id = str(instance["instance_id"])
         missing_articles = [article_id for article_id in instance.get("article_ids", []) if article_id not in articles_by_id]
         if missing_articles:
@@ -199,9 +250,123 @@ def _method_predictions(
             included_studies=[str(study_id) for study_id in instance.get("included_studies", [])],
             articles=articles,
         )
-        prediction = _prediction_from_method_result(instance_id=instance_id, result=result)
-        predictions.append(prediction)
+        return _prediction_from_method_result(instance_id=instance_id, result=result)
+
+    if workers > 1 and len(pending_instances) > 1:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            future_to_instance = {executor.submit(predict_one, instance): instance for instance in pending_instances}
+            for future in concurrent.futures.as_completed(future_to_instance):
+                instance = future_to_instance[future]
+                _record_prediction_result(
+                    future=future,
+                    instance_id=str(instance["instance_id"]),
+                    method=method,
+                    predictions=predictions,
+                    completed_ids=completed_ids,
+                    run_dir=run_dir,
+                )
+    else:
+        for instance in pending_instances:
+            try:
+                prediction = predict_one(instance)
+            except Exception as exc:
+                append_jsonl(
+                    failures_path,
+                    [{"instance_id": str(instance["instance_id"]), "error_type": type(exc).__name__, "message": str(exc), "method": method}],
+                    sort_keys=False,
+                )
+                continue
+            append_jsonl(predictions_path, [prediction], sort_keys=False)
+            predictions.append(prediction)
+            completed_ids.add(str(instance["instance_id"]))
     return predictions
+
+
+def _record_prediction_result(
+    *,
+    future: Any,
+    instance_id: str,
+    method: str,
+    predictions: list[dict[str, Any]],
+    completed_ids: set[str],
+    run_dir: Path,
+) -> None:
+    try:
+        prediction = future.result()
+    except Exception as exc:
+        append_jsonl(
+            run_dir / "prediction_failures.jsonl",
+            [{"instance_id": instance_id, "error_type": type(exc).__name__, "message": str(exc), "method": method}],
+            sort_keys=False,
+        )
+        return
+    append_jsonl(run_dir / "predictions.jsonl", [prediction], sort_keys=False)
+    predictions.append(prediction)
+    completed_ids.add(instance_id)
+
+
+def _existing_predictions(path: Path, requested_ids: set[str]) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    rows = []
+    seen: set[str] = set()
+    for row in read_jsonl(path):
+        instance_id = str(row.get("instance_id") or "")
+        if instance_id in requested_ids and instance_id not in seen:
+            rows.append(row)
+            seen.add(instance_id)
+    return rows
+
+
+def _active_prediction_failure_count(path: Path, *, requested_ids: set[str], completed_ids: set[str]) -> int:
+    if not path.exists():
+        return 0
+    return sum(
+        1
+        for row in read_jsonl(path)
+        if str(row.get("instance_id") or "") in requested_ids and str(row.get("instance_id") or "") not in completed_ids
+    )
+
+
+def _rewrite_active_failures(path: Path, *, requested_ids: set[str], completed_ids: set[str]) -> None:
+    if not path.exists():
+        return
+    rows = [
+        row
+        for row in read_jsonl(path)
+        if str(row.get("instance_id") or "") in requested_ids and str(row.get("instance_id") or "") not in completed_ids
+    ]
+    write_jsonl(path, rows, sort_keys=False)
+
+
+def _active_judge_failure_count(
+    path: Path,
+    *,
+    requested_ids: set[str],
+    completed_fields: dict[str, set[str]],
+) -> int:
+    if not path.exists():
+        return 0
+    active_rows = []
+    seen: set[tuple[str, str]] = set()
+    for row in read_jsonl(path):
+        instance_id = str(row.get("instance_id") or "")
+        if instance_id not in requested_ids:
+            continue
+        field = str(row.get("field") or "")
+        instance_fields = completed_fields.get(instance_id, set())
+        if field in FIELDS:
+            key = (instance_id, field)
+            if field not in instance_fields and key not in seen:
+                active_rows.append(row)
+                seen.add(key)
+        elif not set(FIELDS).issubset(instance_fields):
+            key = (instance_id, "")
+            if key not in seen:
+                active_rows.append(row)
+                seen.add(key)
+    write_jsonl(path, active_rows, sort_keys=False)
+    return len(active_rows)
 
 
 def _question_pico_from_instance(instance: dict[str, Any]) -> QuestionPICO:
@@ -283,19 +448,20 @@ def _prediction_from_method_result(*, instance_id: str, result: list[StudyPIOCha
 
 
 def _completed_instance_ids(path: Path) -> set[str]:
-    if not path.exists():
-        return set()
-    rows = read_jsonl(path)
-    fields_by_instance: dict[str, set[str]] = {}
-    for row in rows:
-        fields_by_instance.setdefault(str(row.get("instance_id") or ""), set()).add(str(row.get("field") or ""))
+    fields_by_instance = _completed_fields_by_instance(path)
     return {instance_id for instance_id, fields in fields_by_instance.items() if set(FIELDS).issubset(fields)}
 
 
-def _failure_count(path: Path) -> int:
+def _completed_fields_by_instance(path: Path) -> dict[str, set[str]]:
     if not path.exists():
-        return 0
-    return len(read_jsonl(path))
+        return {}
+    fields_by_instance: dict[str, set[str]] = {}
+    for row in read_jsonl(path):
+        instance_id = str(row.get("instance_id") or "")
+        field = str(row.get("field") or "")
+        if instance_id and field in FIELDS:
+            fields_by_instance.setdefault(instance_id, set()).add(field)
+    return fields_by_instance
 
 
 if __name__ == "__main__":

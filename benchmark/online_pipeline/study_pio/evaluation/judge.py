@@ -98,40 +98,54 @@ def llm_claim_judge(
         raise ValueError("workers must be positive")
     predictions_by_id = {str(row["instance_id"]): row for row in predictions}
     existing_rows = _completed_resume_rows(output_path) if resume and output_path is not None else []
-    completed_instance_ids = _complete_instance_ids(existing_rows)
+    completed_fields = _completed_fields(existing_rows)
     if output_path is not None:
         write_jsonl(output_path, existing_rows)
-    pending_instances = [instance for instance in instances if str(instance["instance_id"]) not in completed_instance_ids]
     rows = list(existing_rows)
 
-    def judge_one(instance: dict[str, Any]) -> list[dict[str, Any]]:
+    tasks: list[tuple[dict[str, Any], str]] = []
+    for instance in instances:
+        instance_id = str(instance["instance_id"])
+        for field in FIELDS:
+            if field not in completed_fields.get(instance_id, set()):
+                tasks.append((instance, field))
+
+    def judge_one_field(instance: dict[str, Any], field: str) -> dict[str, Any]:
         instance_id = str(instance["instance_id"])
         prediction = predictions_by_id[instance_id]
         gold = gold_by_id[instance_id]
-        prompt = _build_prompt(instance=instance, gold=gold, prediction=prediction)
+        prompt = _build_field_prompt(instance=instance, gold=gold, prediction=prediction, field=field)
         parsed = _call_llm_json(config=config, prompt=prompt)
-        return _coerce_rows(instance_id=instance_id, parsed=parsed, gold=gold, prediction=prediction)
+        return _coerce_field_row(instance_id=instance_id, parsed=parsed, gold=gold, prediction=prediction, field=field)
 
-    max_workers = min(workers, max(1, len(pending_instances)))
+    max_workers = min(workers, max(1, len(tasks)))
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_instance_id = {
-            executor.submit(judge_one, instance): str(instance["instance_id"])
-            for instance in pending_instances
+        future_to_task = {
+            executor.submit(judge_one_field, instance, field): (str(instance["instance_id"]), field)
+            for instance, field in tasks
         }
-        for future in concurrent.futures.as_completed(future_to_instance_id):
-            instance_id = future_to_instance_id[future]
+        for future in concurrent.futures.as_completed(future_to_task):
+            instance_id, field = future_to_task[future]
             try:
-                instance_rows = future.result()
+                row = future.result()
             except Exception as exc:
                 if failure_output_path is not None:
                     append_jsonl(
                         failure_output_path,
-                        [{"instance_id": instance_id, "error_type": type(exc).__name__, "message": str(exc), "judge_mode": "llm"}],
+                        [
+                            {
+                                "instance_id": instance_id,
+                                "field": field,
+                                "error_type": type(exc).__name__,
+                                "message": str(exc),
+                                "judge_mode": "llm",
+                            }
+                        ],
                     )
                 continue
-            rows.extend(instance_rows)
+            rows.append(row)
             if output_path is not None:
-                append_jsonl(output_path, instance_rows)
+                append_jsonl(output_path, [row])
     return rows
 
 
@@ -142,8 +156,16 @@ def _completed_resume_rows(path: str | Path | None) -> list[dict[str, Any]]:
     if not resolved.exists():
         return []
     rows = read_jsonl(resolved)
-    complete_ids = _complete_instance_ids(rows)
-    return [row for row in rows if str(row.get("instance_id")) in complete_ids]
+    seen: set[tuple[str, str]] = set()
+    completed_rows: list[dict[str, Any]] = []
+    for row in rows:
+        instance_id = str(row.get("instance_id") or "")
+        field = str(row.get("field") or "")
+        key = (instance_id, field)
+        if instance_id and field in FIELDS and key not in seen:
+            completed_rows.append(row)
+            seen.add(key)
+    return completed_rows
 
 
 def _complete_instance_ids(rows: list[dict[str, Any]]) -> set[str]:
@@ -156,6 +178,16 @@ def _complete_instance_ids(rows: list[dict[str, Any]]) -> set[str]:
     return {instance_id for instance_id, fields in fields_by_instance.items() if set(FIELDS).issubset(fields)}
 
 
+def _completed_fields(rows: list[dict[str, Any]]) -> dict[str, set[str]]:
+    fields_by_instance: dict[str, set[str]] = {}
+    for row in rows:
+        instance_id = str(row.get("instance_id") or "")
+        field = str(row.get("field") or "")
+        if instance_id and field in FIELDS:
+            fields_by_instance.setdefault(instance_id, set()).add(field)
+    return fields_by_instance
+
+
 def _build_prompt(*, instance: dict[str, Any], gold: dict[str, Any], prediction: dict[str, Any]) -> str:
     payload = {
         "study_id": instance.get("study_id"),
@@ -166,11 +198,27 @@ def _build_prompt(*, instance: dict[str, Any], gold: dict[str, Any], prediction:
     return render_prompt_template(JUDGE_PROMPT, {"input_json": json.dumps(payload, ensure_ascii=False)})
 
 
+def _build_field_prompt(*, instance: dict[str, Any], gold: dict[str, Any], prediction: dict[str, Any], field: str) -> str:
+    payload = {
+        "study_id": instance.get("study_id"),
+        "question_pico": instance.get("question_pico"),
+        "gold": {field: gold.get(field) or ""},
+        "predicted": {field: prediction.get(field) or ""},
+    }
+    prompt = render_prompt_template(JUDGE_PROMPT, {"input_json": json.dumps(payload, ensure_ascii=False)})
+    return (
+        f"{prompt}\n\nJudge only the '{field}' field. "
+        f"Return the same JSON shape, but include only fields.{field}."
+    )
+
+
 def _call_llm_json(*, config: dict[str, str], prompt: str) -> dict[str, Any]:
+    timeout_seconds = config.get("judge_timeout_seconds") or config.get("timeout_seconds")
     return call_llm_json(
         config=config,
         system="You are a strict clinical evidence semantic matching judge. Return only valid JSON.",
         prompt=prompt,
+        timeout_seconds=float(timeout_seconds) if timeout_seconds else None,
     )
 
 
@@ -202,6 +250,31 @@ def _coerce_rows(*, instance_id: str, parsed: dict[str, Any], gold: dict[str, An
             }
         )
     return rows
+
+
+def _coerce_field_row(*, instance_id: str, parsed: dict[str, Any], gold: dict[str, Any], prediction: dict[str, Any], field: str) -> dict[str, Any]:
+    fields_payload = parsed.get("fields") if isinstance(parsed.get("fields"), dict) else {}
+    payload = fields_payload.get(field) if isinstance(fields_payload.get(field), dict) else {}
+    gold_claims = [str(item) for item in payload.get("gold_claims") or []]
+    predicted_claims = [str(item) for item in payload.get("predicted_claims") or []]
+    if not gold_claims and gold.get(field):
+        gold_claims = [str(gold.get(field) or "")]
+    if not predicted_claims and prediction.get(field):
+        predicted_claims = [str(prediction.get(field) or "")]
+    matches = _valid_matches(payload.get("matches") or [], len(gold_claims), len(predicted_claims))
+    matched_gold = {int(match["gold_index"]) for match in matches}
+    matched_predicted = {int(match["predicted_index"]) for match in matches}
+    return {
+        "instance_id": instance_id,
+        "study_id": str(gold.get("study_id") or ""),
+        "field": field,
+        "gold_claims": gold_claims,
+        "predicted_claims": predicted_claims,
+        "matches": matches,
+        "unmatched_gold_indices": [index for index in range(len(gold_claims)) if index not in matched_gold],
+        "unmatched_predicted_indices": [index for index in range(len(predicted_claims)) if index not in matched_predicted],
+        "judge_mode": "llm",
+    }
 
 
 def _valid_matches(raw_matches: list[Any], gold_count: int, predicted_count: int) -> list[dict[str, Any]]:

@@ -137,7 +137,7 @@ benchmark/online_pipeline/grade/imprecision/
     </tr>
     <tr>
       <td><code>sof_context</code></td>
-      <td>SoF row 的 outcome、comparison、effect context 等信息</td>
+      <td>SoF row 的原始上下文。注意：SoF 脚注和 summary span 是 GRADE gold 的来源，可能直接泄漏 downgrade rationale；online prediction 主评估不得使用这些 label-source 字段。</td>
     </tr>
     <tr>
       <td><code>analysis_setting</code></td>
@@ -254,6 +254,12 @@ PYTHONPATH=backend/src python benchmark/online_pipeline/grade/raw_builder.py all
 ```
 
 ## 6. 评估
+
+### 输入泄漏约束
+
+GRADE 数据集中保留了 SoF row context 以支持对齐审计和抽取型实验，但真实 online prediction 只能使用上游 pipeline 可产生的信息，例如 analysis setting、effect estimate、included studies、study-level RoB、study results 和 PICO/characteristics 等。来自已有 Summary of Findings 表的 `footnote_texts`、`comment_text`、`source_summary_of_findings_span_text` 可能直接包含人工 GRADE 降级理由，不能作为主评估输入。
+
+如需评估 SoF 抽取能力，应在 run id 和报告中明确标注为 extraction/ablation，不得与 online prediction 结果混在一起。
 
 评估命令由各 domain README 维护。runner 比较真实的 GRADE judgement 字段：
 

@@ -37,6 +37,8 @@ method 需要判断该 SoF row 是否因为纳入研究存在方法学偏倚风�
 
 ## 3. 输入依据
 
+默认评估使用 `online_upstream` 输入模式：只允许真实 online pipeline 上游可产生的字段。`Summary of Findings` 表及其脚注是 GRADE gold judgement 的来源，不属于 article-level RoB 或 meta-analysis 上游输入；因此主评估不得使用 `sof_context.footnote_texts`、`sof_context.comment_text` 或 `sof_context.source_summary_of_findings_span_text`。
+
 <table>
   <thead>
     <tr>
@@ -46,8 +48,8 @@ method 需要判断该 SoF row 是否因为纳入研究存在方法学偏倚风�
   </thead>
   <tbody>
     <tr>
-      <td><code>sof_context</code></td>
-      <td>当前 SoF row 的 outcome、comparison 和 effect context。</td>
+      <td><code>analysis_setting</code></td>
+      <td>上游 meta-analysis setting，包括 comparison、outcome、data type 和 effect measure。</td>
     </tr>
     <tr>
       <td><code>evidence_body</code> / <code>included_study_ids</code></td>
@@ -63,6 +65,18 @@ method 需要判断该 SoF row 是否因为纳入研究存在方法学偏倚风�
     </tr>
   </tbody>
 </table>
+
+### 泄漏风险
+
+`instances.jsonl` 里仍保留 `sof_context`，因为其它 GRADE domain 和历史抽取实验可能会使用同一份 SoF row context。但对本模块的真实 online benchmark 来说，SoF 脚注常直接写出 “Downgraded one level for risk of bias” 等 gold rationale，属于 label-source leakage。
+
+`method_llm` 默认不会把 `sof_context` 放进 prompt。只有显式设置：
+
+```bash
+GRADE_ROB_ALLOW_SOF_CONTEXT=1
+```
+
+才会进入 `sof_extraction_ablation` 模式。该模式只能用于诊断“从已有 SoF 表抽取结构化 GRADE judgement”的上限，不应作为 online prediction 主结果汇报。
 
 ## 4. 输出与指标
 

@@ -1,7 +1,26 @@
 Judge Study-level PIO semantic claim coverage for one included clinical study.
-For each field, split the gold and predicted text into concise semantic claims. Match a predicted claim to a gold claim only when they describe the same study-level population, intervention/comparator, or outcome information.
-Allow synonyms, abbreviations, and reasonable summarization.
-Do not match wrong population, wrong arm/comparator, wrong outcome, unsupported expansion, or question-level PICO copied without study support.
+
+Context:
+- The gold text is the Cochrane-style reference study characteristic for this included study.
+- The predicted text is a method output for the same study.
+- The question PICO is context only. It helps interpret abbreviations and outcome domains, but it is not itself a gold label.
+
+For each field, split the gold and predicted text into concise, atomic semantic claims. Match a predicted claim to a gold claim when they describe the same study-level population, intervention/comparator, or outcome concept.
+
+General matching rules:
+- Allow synonyms, abbreviations, spelling variants, and reasonable summarization.
+- Keep gold_claims and predicted_claims brief. Paraphrase each claim in your own words; do not copy long source passages.
+- For very long outcome lists, group repeated variants under the same outcome domain and time window when the distinction would not change matching.
+- Match a more specific predicted claim to a broader gold claim if the clinical/study concept is the same.
+- Match a broader predicted claim to a more specific gold claim only if it preserves the key distinguishing detail.
+- Do not create extra unmatched predicted claims from harmless qualifiers, wording differences, or measurement detail that is nested inside an already matched claim.
+- Mark an unmatched predicted claim only when it asserts a distinct material detail not covered by any gold claim.
+- Do not match wrong population, wrong arm/comparator, wrong outcome domain, or unsupported expansion that changes meaning.
+
+Field-specific rules:
+- population: match eligibility criteria, setting/country, sample size, arm sizes, age/sex, disease severity, and important baseline characteristics. Do not over-penalize enrolled/randomized/analyzed sample-size wording when they refer to the same study population.
+- intervention_comparator: split intervention and comparator arm details. Match arm content, dose, duration, frequency, provider/supervision, setting, co-interventions, and decision-aid components when semantically equivalent.
+- outcomes: match outcome domains, measurement instruments/scales, adverse effects/harms, timepoints, and follow-up windows. Review-relevant outcome domains may be broader than the exact article wording. Do not match process/implementation/economic outcomes to clinical outcomes unless the gold explicitly includes that domain.
 
 Input JSON:
 {{input_json}}
