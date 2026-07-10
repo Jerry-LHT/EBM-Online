@@ -12,18 +12,20 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[5]))
 
 from ebm_backend.online_pipeline.domain.serialization import to_jsonable
+from benchmark.online_pipeline.grade.inconsistency.evaluation.input_adapter import build_method_instance
 from benchmark.online_pipeline.grade.inconsistency.evaluation.io import load_dataset
 from benchmark.online_pipeline.grade.inconsistency.evaluation.metrics import build_comparisons, evaluate_predictions
 from benchmark.online_pipeline.shared.jsonl import write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
+from ebm_backend.online_pipeline.infrastructure.methods.grade.loader import get_grade_domain_method
 
 
 MODULE_NAME = "grade"
+DOMAIN_NAME = "inconsistency"
 DOMAIN_DIR = Path(__file__).resolve().parents[1]
 MODULE_DIR = DOMAIN_DIR.parent
-DEFAULT_DATASET = DOMAIN_DIR / "datasets" / "grade_v3" / "splits" / "smoke"
+DEFAULT_DATASET = DOMAIN_DIR / "datasets" / "grade_v4" / "splits" / "smoke"
 FIELDS = [
     "run_id",
     "method",
@@ -54,7 +56,7 @@ def run_benchmark(
     if limit is not None:
         instances = instances[:limit]
         gold_by_id = {str(instance["instance_id"]): gold_by_id[str(instance["instance_id"])] for instance in instances}
-    method_obj = None if method in {"gold", "grade.gold", "oracle"} else load_method(method, default_module=MODULE_NAME)
+    method_obj = None if method in {"gold", "grade.gold", "oracle"} else _load_inconsistency_method(method)
     predictions = [
         _predict(
             instance=instance,
@@ -105,10 +107,9 @@ def _predict(*, instance: dict[str, Any], gold: dict[str, Any], method: str, met
             "domain": instance["domain"],
             "judgement": gold.get("judgement") or {},
         }
-    method_obj = method_obj or load_method(method, default_module=MODULE_NAME)
-    if not hasattr(method_obj, "run_instance"):
-        raise TypeError("GRADE domain benchmark methods must implement run_instance(instance=...).")
-    output = method_obj.run_instance(instance=instance)
+    method_obj = method_obj or _load_inconsistency_method(method)
+    method_instance = build_method_instance(instance)
+    output = _run_method_instance(method_obj=method_obj, method_instance=method_instance)
     return {
         "instance_id": instance["instance_id"],
         "sof_row_id": instance.get("sof_row_id"),
@@ -116,6 +117,48 @@ def _predict(*, instance: dict[str, Any], gold: dict[str, Any], method: str, met
         "domain": instance.get("domain"),
         "prediction": to_jsonable(output),
     }
+
+
+def _run_method_instance(*, method_obj: Any, method_instance: dict[str, Any]) -> dict[str, Any]:
+    if hasattr(method_obj, "run_instance"):
+        return method_obj.run_instance(instance=method_instance)
+    domain = str(method_instance.get("domain") or "")
+    if hasattr(method_obj, "run"):
+        judgement = method_obj.run(
+            domain_evidence=_dict_value(method_instance.get("domain_evidence")),
+            evidence_body=_dict_value(method_instance.get("evidence_body")),
+        )
+        return {
+            "instance_id": method_instance.get("instance_id"),
+            "sof_row_id": method_instance.get("sof_row_id"),
+            "review_id": method_instance.get("review_id"),
+            "domain": method_instance.get("domain"),
+            "judgement": judgement,
+        }
+    domain_methods = getattr(method_obj, "domain_methods", None)
+    if isinstance(domain_methods, dict) and domain in domain_methods:
+        domain_method = domain_methods[domain]
+        judgement = domain_method.run(
+            domain_evidence=_dict_value(method_instance.get("domain_evidence")),
+            evidence_body=_dict_value(method_instance.get("evidence_body")),
+        )
+        return {
+            "instance_id": method_instance.get("instance_id"),
+            "sof_row_id": method_instance.get("sof_row_id"),
+            "review_id": method_instance.get("review_id"),
+            "domain": method_instance.get("domain"),
+            "judgement": judgement,
+        }
+    raise TypeError("GRADE domain benchmark methods must implement run_instance(instance=...) or expose domain_methods.")
+
+
+def _load_inconsistency_method(method: str) -> Any:
+    method_name = method.split(".", 1)[1] if method.startswith(f"{DOMAIN_NAME}.") else method
+    return get_grade_domain_method(DOMAIN_NAME, method_name)
+
+
+def _dict_value(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
 
 
 def _write_run(

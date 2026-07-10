@@ -1,0 +1,125 @@
+Task: Extract study-level PICO coverage and target-vs-study applicability differences for GRADE indirectness.
+
+Use only the normalized evidence below. Do not use author notes outside the
+normalized evidence, Summary of Findings comments, Summary of Findings
+footnotes, source SoF row text, benchmark alignment rationales, labels, external
+web pages, or article lookup.
+
+Official framing:
+
+- Cochrane/GRADE distinguishes the review question PICO, the PICO for the
+  current synthesis, and the PICO of the included studies.
+- This step is extraction and comparison only. Do not make the final GRADE
+  downgrade judgement.
+- Use review_question as the primary question of interest.
+- Use synthesis_target as the current synthesis/meta-analysis row. First check
+  whether it is a reasonable specification of review_question or whether it
+  already introduces a package/co-intervention, population, comparator, outcome
+  measurement, timepoint, or setting/context applicability issue.
+- For outcome, treat synthesis_target.outcome as the current GRADE row outcome.
+  Compare study outcome measurement/definition against that current outcome.
+  Do not call a row outcome indirect merely because it is more specific or more
+  patient-important than wording in the review title/question, unless it falls
+  outside the review outcome set or changes the construct being graded.
+- If review_question.outcome is empty, do not infer a review outcome from
+  question_text. Record review outcome as not specified and treat the
+  synthesis_target outcome as the current row outcome. Outcome indirectness then
+  depends on study-level measurement/definition/proxy/follow-up differences
+  from that current row outcome.
+- Use included_study_evidence as the actual available evidence.
+- A visible difference is important only if it might reduce applicability of the
+  pooled effect estimate to the target GRADE question. Ordinary within-scope
+  heterogeneity should be recorded separately.
+
+Required extraction:
+
+1. Summarize review_question and synthesis_target separately.
+2. Extract review-to-synthesis differences that might affect applicability.
+   For the outcome domain, only mark review-to-synthesis outcome shift when
+   review_question.outcome explicitly conflicts with synthesis_target.outcome or
+   synthesis_target.outcome is outside the explicit review outcome set. Do not
+   use question_text alone to create an outcome conflict.
+3. For every indirectness domain, extract the actual study-level PICO/context
+   coverage visible in included_study_evidence:
+   - population: diagnosis, severity/risk, age, comorbidity, eligibility.
+   - intervention: variant, dose, delivery, duration, provider, package,
+     co-interventions, device/drug/procedure details.
+   - comparator: placebo/usual care/no treatment/active control and practice
+     context.
+   - direct_comparison: direct head-to-head versus indirect/network/bridged
+     comparison structure.
+   - outcome: construct, patient-importantness, measurement tool, scale,
+     composite, surrogate/proxy/intermediate status.
+   - timepoint: follow-up and assessment windows.
+   - setting: care setting, era, expertise, resources, technology, geography.
+4. For every domain, separate:
+   - visible_differences: target-vs-study differences or restrictions.
+   - within_scope_explanations: differences that appear ordinary or already
+     covered by the target/review scope.
+5. Apply an applicability gate for every visible difference:
+   - difference_detected: whether there is an actual PICO/context difference.
+   - is_within_scope_variation: whether it is a reasonable synthesis
+     specification, common eligibility restriction, ordinary clinical
+     heterogeneity, same-class dose/delivery variation, or routine measurement
+     variation.
+   - effect_modification_plausible: whether the input supports that this
+     difference could plausibly change the intervention effect or applicability
+     of the pooled estimate.
+   - applicability_impact: none, minor, important, major, or unclear.
+   A wording mismatch is not enough. There must be a plausible applicability
+   mechanism.
+6. Populate important_mismatch_candidates only when a review-to-synthesis or
+   synthesis/study difference might plausibly change applicability of the
+   pooled effect estimate. Do not include every wording difference.
+7. Populate likely_within_scope_heterogeneity for visible differences that
+   should probably not drive downgrading.
+
+Be conservative about unsupported claims:
+
+- Do not infer indirectness from a single country/site, hospital/specialist
+  setting, common eligibility criteria, varied same-class dose/delivery, absent
+  timepoint text, or ordinary usual-care variation unless the normalized input
+  supports a plausible effect-applicability problem.
+- Pay special attention to complex intervention packages/co-interventions and
+  outcome measurement/definition differences. These are indirectness concerns
+  when the available evidence no longer isolates or measures the review
+  question of interest.
+- But do not treat all narrowing as indirectness. A narrower synthesis or study
+  population is often a valid specification of a broad review question unless
+  the excluded/added population, intervention component, comparator, outcome
+  definition, timing, or setting plausibly changes applicability.
+- If the normalized input is insufficient, say so in insufficient_information.
+
+JSON output contract:
+
+- Return exactly one valid JSON object and nothing else.
+- Do not wrap the answer in Markdown fences.
+- Do not include comments, explanations outside JSON, trailing commas, or
+  unquoted object keys.
+- Use double quotes for every JSON key and string value.
+- Use true, false, and null only as lowercase JSON literals.
+- Use empty arrays or empty strings when a schema field has no available
+  evidence.
+- The top-level object must match the schema below. Do not return a list as the
+  top-level value.
+
+Minimal valid shape example:
+
+{
+  "review_question_summary": {},
+  "synthesis_target_summary": {},
+  "review_to_synthesis_alignment": [],
+  "study_level_pico_profile": {},
+  "applicability_gate": [],
+  "important_mismatch_candidates": [],
+  "likely_within_scope_heterogeneity": [],
+  "insufficient_information": []
+}
+
+Normalized evidence:
+
+{{EVIDENCE_JSON}}
+
+Return JSON matching this schema:
+
+{{EXTRACTION_SCHEMA_JSON}}

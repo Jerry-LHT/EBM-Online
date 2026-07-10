@@ -1,0 +1,160 @@
+Task: Return the final GRADE indirectness judgement for this evidence body.
+
+The normalized evidence is split into official PICO layers:
+
+- review_scope_pico: the broad review/question PICO. Use it to understand the
+  intended clinical scope, intervention class, comparator class, and outcome
+  domain.
+- synthesis_target_pico: the row-specific target for this synthesis/analysis.
+  This is the primary target for indirectness judgement.
+- sof_display_context: Summary of Findings display context and fallback context
+  only. It must not be treated as a footnote, gold rationale, or proof that the
+  evidence is direct.
+- evidence_found: the included studies and result rows that contributed evidence.
+
+Required comparison:
+
+synthesis_target_pico, interpreted within review_scope_pico
+vs
+evidence_found
+
+Do not decide directness from matching labels alone. A matched comparison or
+outcome label shows that the result row belongs to this analysis, but it does
+not prove that the study populations, intervention implementation, comparator,
+outcome operationalization, follow-up, or setting are applicable.
+
+Required process:
+
+1. Summarize the review scope, synthesis target, and evidence found.
+2. Build evidence_profile from evidence_found before assigning the final
+   judgement. This profile describes what the already-pooled evidence body
+   actually covers in applicability terms:
+   - population_scope
+   - intervention_variants
+   - comparator_context
+   - outcome_measurement
+   - follow_up
+   - setting_era_context
+   - representativeness_limits
+3. For every domain, compare synthesis_target_pico against evidence_found,
+   using review_scope_pico to decide whether the target is a broad class/domain
+   or a specific variant/outcome.
+4. Assign directness_ratings for every domain using the Cochrane-style question:
+   is the evidence sufficiently direct for this synthesis target?
+   - yes: clearly sufficiently direct
+   - probably_yes: minor uncertainty, unlikely to limit applicability
+   - probably_no: meaningful applicability concern; usually supports downgrade
+   - no: clear indirectness; supports downgrade
+   - unclear: not enough normalized input to judge
+5. Use sof_display_context only when synthesis target population, setting, or
+   timepoint is missing or to clarify row display context.
+6. Assign relation:
+   - same
+   - narrower_but_applicable
+   - broader_but_applicable
+   - partial_overlap
+   - different
+   - unclear
+7. Assign concern_level:
+   - none
+   - minor
+   - serious
+   - very_serious
+   - unclear
+8. Make the final GRADE indirectness judgement from the evidence_profile,
+   directness_ratings, and domain comparisons.
+
+Output discipline:
+
+- Fill `domain_comparisons` for every domain.
+- Do not output a separate `domain_assessments` object; it duplicates
+  `domain_comparisons` and makes the JSON harder to complete reliably.
+
+Domain-specific guidance:
+
+- population: Compare the synthesis target population and broad review
+  population against diagnosis, severity/risk, age, comorbidity, and eligibility
+  in the contributing studies. Narrower eligibility is not enough for
+  downgrading unless it affects applicability.
+- intervention: Compare the synthesis target intervention, interpreted within
+  the review intervention scope, against actual intervention implementation,
+  device/drug/procedure variant, dose, duration, delivery, provider expertise,
+  co-interventions, and whether studied variants represent the target
+  intervention class. Limited or non-representative implementation can be
+  indirect when it limits applicability. Record these details in
+  evidence_profile.intervention_variants before deciding concern_level.
+- comparator: Compare the synthesis target comparator, interpreted within the
+  review comparator scope, against actual placebo/usual care/no treatment/active
+  control. Consider whether usual care or clinical practice has changed enough
+  that the comparator no longer represents the target context. Record these
+  details in evidence_profile.comparator_context before deciding concern_level.
+- direct_comparison: Decide whether the evidence directly compares the
+  synthesis target intervention and comparator head-to-head, rather than relying
+  on indirect or network evidence.
+- outcome: Compare the synthesis target outcome and measure, interpreted within
+  the review outcome domain, against what was measured. Consider surrogate,
+  proxy, intermediate outcomes, patient-importantness, composite definitions,
+  measurement tools, and whether outcome operationalization changes
+  interpretation. Record these details in evidence_profile.outcome_measurement
+  before deciding concern_level.
+- timepoint: If synthesis target timepoint is explicit, compare it against
+  study follow-up and assessment windows. If target timepoint is absent, use SoF
+  display context only as fallback and do not downgrade for absence alone.
+- setting: Compare synthesis target/display setting against study setting, care
+  context, era, technology, specialist expertise, and resource context. Country
+  or site variation alone is not enough, but old studies or changed clinical
+  practice can be indirect when they limit current applicability. Record these
+  details in evidence_profile.setting_era_context before deciding concern_level.
+
+Final judgement rules:
+
+- none: Evidence directly answers the synthesis target question, or concerns are
+  minor/probably_yes and unlikely to affect applicability of the effect
+  estimate.
+- serious: One important concern is important enough to lower certainty because
+  the evidence addresses a restricted or different PICO version that plausibly
+  changes the anticipated intervention effect in the group of primary interest.
+- very_serious: Multiple important concerns, or one major concern, substantially
+  limit applicability and confidence in the effect estimate.
+- unclear: The normalized input is insufficient to judge.
+
+Mapping discipline:
+
+- If any domain is rated no, downgrade unless there is a clear reason that the
+  issue is irrelevant to the pooled effect estimate.
+- If any domain is rated probably_no, downgrade only when the rationale explains
+  why the concern is important enough to affect applicability of the pooled
+  effect estimate. If the concern is plausible but not clearly important, record
+  it as minor and do not downgrade.
+- Multiple probably_no domains, or one no domain with major impact, can justify
+  very_serious.
+- yes/probably_yes domains should usually map to none/minor.
+
+If downgrading, explain why the concern affects applicability of the effect
+estimate, not merely that texts differ.
+
+Do not downgrade only because evidence is from a single country, a hospital or
+specialist setting, common eligibility exclusions, varied but same-class dose or
+delivery, absent timepoint text, or ordinary differences in usual care, unless
+the normalized input supports that these differences probably change the
+anticipated effect for the synthesis target.
+
+Consistency requirement:
+
+- If evidence_profile lists an important limit that plausibly reduces
+  applicability, the related domain comparison should not be "none".
+- If directness_ratings has any probably_no/no domain, the final judgement
+  should usually be downgraded. If not downgraded, explicitly explain why the
+  probably_no/no concern does not affect applicability of the pooled effect
+  estimate.
+- If a final judgement is no downgrade, explain why any profile limits are only
+  minor, already covered by the synthesis target, or not expected to affect the
+  pooled effect estimate.
+
+Normalized evidence:
+
+{{EVIDENCE_JSON}}
+
+Return JSON matching this schema:
+
+{{OUTPUT_SCHEMA_JSON}}

@@ -227,7 +227,7 @@ benchmark/online_pipeline/raw_data/grade/intermediate/alignment_v3/
 
 `grade_v4` 要求 `alignment_v3/alignment_summary.json` 的 `builder_version` 为
 `online-pipeline-builder-v4-grade-alignment` 且 `mode = "llm"`。旧 `grade_v3`
-alignment 只作为历史兼容来源保留，不能被静默包装成 `grade_v4`。builder 不再使用
+数据与其衍生 alignment 已归入本地 `archive/`，不能被静默包装成 `grade_v4`。builder 不再使用
 legacy `benchmark_core*.jsonl` 或旧版 SoF-analysis alignment 文件作为对齐输入。
 
 ## 5. 构建

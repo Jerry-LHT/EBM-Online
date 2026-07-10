@@ -23,7 +23,7 @@ from benchmark.online_pipeline.shared.run_utils import default_run_id
 MODULE_NAME = "grade"
 DOMAIN_DIR = Path(__file__).resolve().parents[1]
 MODULE_DIR = DOMAIN_DIR.parent
-DEFAULT_DATASET = DOMAIN_DIR / "datasets" / "grade_v3" / "splits" / "smoke"
+DEFAULT_DATASET = DOMAIN_DIR / "datasets" / "grade_v4" / "splits" / "smoke"
 FIELDS = [
     "run_id",
     "method",

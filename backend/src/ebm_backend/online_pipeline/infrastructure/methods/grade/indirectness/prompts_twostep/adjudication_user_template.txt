@@ -1,0 +1,237 @@
+Task: Return the final GRADE indirectness judgement for this evidence body.
+
+You receive two inputs:
+
+- normalized_evidence: review_question, synthesis_target, and
+  included_study_evidence for the current evidence body.
+- extracted_study_pico_profile: a prior extraction step that summarizes
+  study-level PICO coverage, visible target-vs-study differences, likely
+  within-scope heterogeneity, and important mismatch candidates. It is not a
+  final judgement and may over-call or under-call concerns.
+- dynamic_threshold_policy: a prior policy step that sets domain-specific
+  threshold posture for this evidence body. It is guidance for calibration, not
+  a final judgement.
+
+Use only these inputs. Do not use Summary of Findings comments, Summary of
+Findings footnotes, source SoF row text, benchmark alignment rationales, labels,
+external web pages, or article lookup.
+
+Official comparison:
+
+review_question
+vs
+synthesis_target
+vs
+the PICO/context actually covered by included studies and result rows.
+
+review_question is the question of interest and the primary applicability
+anchor. synthesis_target is the current meta-analysis/SoF row target; it can be
+a valid specification of the review question, but it can also reveal
+indirectness if it changes the intervention package, comparator, population,
+outcome measurement, timing, or setting in a way that affects applicability.
+included_study_evidence is the actual available evidence.
+
+Required process:
+
+1. Use review_question to understand the intended target GRADE question.
+2. Check whether synthesis_target is a reasonable specification of
+   review_question or already introduces a meaningful applicability mismatch.
+   For outcome, use synthesis_target.outcome as the current GRADE row outcome.
+   Do not compare the row outcome only to the review title. A patient-important
+   row outcome inside the review outcome set is not indirect just because it is
+   downstream of the intervention's mechanistic aim.
+   If review_question.outcome is empty, do not infer an outcome target from
+   question_text; treat the current row outcome as synthesis_target.outcome and
+   judge study-level outcome measurement/definition/proxy/follow-up directness
+   against it.
+3. Use extracted_study_pico_profile to avoid missing study-level PICO
+   restrictions or measurement/context differences, but verify every important
+   mismatch candidate against normalized_evidence.
+4. Use dynamic_threshold_policy to calibrate each domain:
+   - sensitive domains require less evidence to treat a concrete,
+     domain-specific applicability mechanism as important.
+   - conservative domains require stronger evidence; ordinary visible
+     differences should usually be rejected as minor or within-scope.
+   - balanced domains use the standard GRADE threshold: clear,
+     evidence-supported important difference.
+   Do not mechanically follow the policy if normalized_evidence contradicts it.
+   Explain any override in rationale, counter_evidence, or
+   serious_limitation_check.
+5. Build evidence_profile from included_study_evidence and the extracted
+   profile.
+6. For every domain, run an applicability gate before assigning downgrade
+   contribution:
+   - difference_detected: is there an actual PICO/context difference?
+   - is_within_scope_variation: is this a reasonable synthesis specification,
+     common eligibility restriction, ordinary clinical heterogeneity,
+     same-class dose/delivery/provider variation, routine measurement
+     variation, or an unspecified timepoint with no clear mismatch?
+   - effect_modification_plausible: does the normalized input support a
+     plausible mechanism by which this difference changes the effect estimate
+     or its applicability?
+   - applicability_impact: none, minor, important, major, or unclear.
+   - downgrade_contribution: none, possible, serious, or very_serious.
+7. For every domain, assign directness_ratings using this question:
+   is the synthesis target and included evidence sufficiently direct for the
+   review question of interest?
+   - yes = sufficiently direct; no important applicability concern.
+   - probably_yes = probably sufficiently direct; at most minor concern.
+   - probably_no = probably indirect; meaningful applicability concern.
+   - no = clearly indirect; important applicability concern.
+   - unclear = cannot judge from the inputs.
+8. For every domain, fill domain_comparisons with target, evidence found,
+   relation, concern_level, supporting_evidence, counter_evidence, and
+   applicability_impact.
+9. Before the final judgement, run a serious-limitation check:
+   - Accepted serious limitations: domains where the evidence is outside the
+     target question or synthesis target in a way that probably changes
+     applicability of the pooled effect estimate.
+   - Rejected or minor candidates: visible differences that are reasonable
+     synthesis specifications, common eligibility restrictions, within-scope
+     clinical heterogeneity, same-class/dose/provider variations, routine
+     measurement variations, or unsupported possible mechanisms.
+   In the final rationale, name the accepted serious limitations if you
+   downgrade. If there are only rejected/minor candidates, do not downgrade.
+10. Make the final GRADE indirectness judgement.
+
+Judgement threshold:
+
+- none: No important applicability problem is visible, or differences are minor,
+  ordinary within-scope heterogeneity, or already covered by the target/review
+  scope.
+- serious: At least one important target-vs-study PICO/context difference
+  plausibly reduces applicability of the pooled effect estimate to the target
+  GRADE question.
+- very_serious: Multiple important differences, or one major difference,
+  substantially limit applicability.
+- unclear: The normalized input and extracted profile are insufficient to judge.
+
+Threshold calibration:
+
+- Do not convert "possible" downgrade_contribution, "minor" applicability
+  impact, or a single "probably_no" directness rating into a serious downgrade
+  unless the rationale identifies an accepted serious limitation with a concrete
+  applicability mechanism.
+- A final downgraded=yes judgement should be supported by at least one of:
+  a domain_comparisons concern_level of serious/very_serious, an
+  applicability_gate downgrade_contribution of serious/very_serious, or an
+  applicability_gate impact of important/major that is not ordinary within-scope
+  variation. In a sensitive domain, a concrete proxy/measurement/package/
+  subgroup mechanism identified by dynamic_threshold_policy can justify this
+  support, but you must then mark the corresponding domain_comparisons and
+  applicability_gate consistently rather than leaving them minor/possible.
+- If that support remains absent after applying the dynamic threshold policy,
+  set downgraded=no, severity=none, levels=0, and record the visible
+  differences as counter_evidence or rejected/minor candidates.
+- Do not use multiple minor or possible concerns as arithmetic evidence for a
+  serious downgrade. Multiple concerns justify downgrading only when their
+  combined effect creates a concrete important applicability limitation.
+- Apply the dynamic threshold policy by domain. For example, an outcome policy
+  marked sensitive can support accepting a measurement/proxy construct mismatch
+  as serious with less additional evidence, while a setting policy marked
+  conservative should reject country/site differences unless there is a clear
+  mechanism. This is domain calibration, not a rule that all sensitive-domain
+  differences must be downgraded.
+
+Mapping discipline:
+
+- If extracted_study_pico_profile has important_mismatch_candidates with
+  potentially_important or major impact, do not automatically downgrade. First
+  decide whether the difference is actually outside the review question or a
+  reasonable synthesis specification
+  and whether it plausibly affects effect applicability.
+- Use applicability_gate to make the reasoning transparent. A downgraded final
+  judgement should normally be supported by at least one domain whose gate shows
+  more than ordinary within-scope variation. If the gate and final judgement
+  differ, explain why in the rationale instead of silently treating all visible
+  differences as serious.
+- If you reject an important_mismatch_candidate, mention why in counter_evidence
+  or applicability_impact.
+- If you accept an important_mismatch_candidate, the corresponding domain should
+  usually be rated probably_no or no and concern_level serious/very_serious.
+- If a domain has rating no, the final judgement should usually be downgraded
+  unless you explicitly reject that rating as irrelevant in the rationale.
+- Do not use rating no to mean "no concern"; use yes or probably_yes for direct
+  evidence with no important concern.
+- Do not downgrade only because evidence is from a single country, a hospital or
+  specialist setting, common eligibility exclusions, varied but same-class dose
+  or delivery, absent timepoint text, or ordinary differences in usual care,
+  unless the inputs support that these differences probably change the expected
+  intervention effect or applicability.
+- Do downgrade when the normalized evidence shows that the current synthesis or
+  included studies evaluate a complex package or co-intervention such that the
+  review question's intended intervention effect is not isolated.
+- Do downgrade when outcome measurement, assessment method, definition, proxy
+  status, or follow-up differs enough that the pooled outcome is not the same
+  patient-important construct as the review question.
+- Do not downgrade merely because synthesis_target.outcome differs from the
+  review title wording or from a mechanistic description in question_text. The
+  current GRADE row outcome is allowed to be a specific patient-important
+  outcome within the review's outcome scope.
+- Do downgrade when available evidence covers only a life-stage, severity, or
+  disease subgroup that is materially different from the review population and
+  the effect or applicability would not reasonably transfer to excluded groups.
+- Do downgrade when the intervention package changes the intended causal
+  contrast, such as additional intervention components that prevent isolating
+  the effect of the target component.
+- If the review question is broad and the synthesis target is a clinically
+  coherent subgroup, comparison, intervention class member, or outcome within
+  that scope, classify it as within-scope unless the normalized input shows why
+  applicability to the intended question is reduced.
+- When the normalized input does not support whether a visible difference
+  changes applicability, prefer not downgrading for indirectness and document
+  the uncertainty rather than converting uncertainty into a serious concern.
+
+JSON output contract:
+
+- Return exactly one valid JSON object and nothing else.
+- Do not wrap the answer in Markdown fences.
+- Do not include comments, explanations outside JSON, trailing commas, or
+  unquoted object keys.
+- Use double quotes for every JSON key and string value.
+- Use true, false, and null only as lowercase JSON literals.
+- Use empty arrays or empty strings when a schema field has no available
+  evidence.
+- The top-level object must match the schema below. Do not return a list as the
+  top-level value.
+
+Minimal valid shape example:
+
+{
+  "target_question_summary": {},
+  "evidence_found_summary": {},
+  "evidence_profile": {},
+  "directness_ratings": {},
+  "domain_comparisons": {},
+  "applicability_gate": [],
+  "serious_limitation_check": {
+    "accepted_serious_limitations": [],
+    "rejected_or_minor_candidates": [],
+    "threshold_rationale": ""
+  },
+  "downgraded": "no",
+  "severity": "none",
+  "levels": "0",
+  "level_evaluable": true,
+  "rationale": "",
+  "indirectness_domains": [],
+  "supporting_evidence": [],
+  "counter_evidence": [],
+  "confidence": "low"
+}
+
+Normalized evidence:
+
+{{EVIDENCE_JSON}}
+
+Extracted study-level PICO profile:
+
+{{EXTRACTION_JSON}}
+
+Dynamic threshold policy:
+
+{{THRESHOLD_POLICY_JSON}}
+
+Return JSON matching this schema:
+
+{{OUTPUT_SCHEMA_JSON}}

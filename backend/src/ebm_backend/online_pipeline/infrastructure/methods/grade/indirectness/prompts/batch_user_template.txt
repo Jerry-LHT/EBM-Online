@@ -1,0 +1,72 @@
+Task: For each evidence body in the batch, independently make a final GRADE indirectness judgement.
+
+Judge each item as if it were evaluated alone. Do not compare items with each
+other. Do not let the judgement for one item influence another item. Return
+exactly one judgement for every input instance_id.
+
+Each item is split into official PICO layers: review_scope_pico,
+synthesis_target_pico, sof_display_context, and evidence_found. Compare the
+row-specific synthesis target PICO, interpreted within the broad review scope
+PICO, against the evidence found before making the final judgement. Use SoF
+display context only as display/fallback context. Do not decide directness from
+matching comparison/outcome labels alone.
+
+For every item, use this process:
+
+1. Summarize the review scope, synthesis target, and evidence found.
+2. Build evidence_profile from the included studies and result rows before
+   assigning the final judgement. The profile should cover intervention
+   variants, comparator context, outcome measurement, follow-up, setting/era
+   context, and overall representativeness limits.
+3. For every domain, compare synthesis_target_pico against evidence_found,
+   using review_scope_pico to decide whether the target is a broad class/domain
+   or a specific variant/outcome.
+4. Assign directness_ratings for every domain using the Cochrane-style question:
+   is the evidence sufficiently direct for this synthesis target?
+   - yes: clearly sufficiently direct
+   - probably_yes: minor uncertainty, unlikely to limit applicability
+   - probably_no: meaningful applicability concern; usually supports downgrade
+   - no: clear indirectness; supports downgrade
+   - unclear: not enough normalized input to judge
+5. Use sof_display_context only when synthesis target population, setting, or
+   timepoint is missing or to clarify row display context.
+6. Make the final GRADE indirectness judgement from the evidence_profile,
+   directness_ratings, and domain comparisons.
+
+Output discipline:
+
+- Fill `domain_comparisons` for every domain.
+- Do not output a separate `domain_assessments` object; it duplicates
+  `domain_comparisons` and makes the JSON harder to complete reliably.
+
+Mapping discipline:
+
+- If any domain is rated no, downgrade unless there is a clear reason that the
+  issue is irrelevant to the pooled effect estimate.
+- If any domain is rated probably_no, downgrade only when the rationale explains
+  why the concern is important enough to affect applicability of the pooled
+  effect estimate. If the concern is plausible but not clearly important, record
+  it as minor and do not downgrade.
+- Multiple probably_no domains, or one no domain with major impact, can justify
+  very_serious.
+- yes/probably_yes domains should usually map to none/minor.
+
+If a final judgement is no downgrade despite probably_no/no ratings, explicitly
+explain why those concerns do not affect applicability of the pooled effect
+estimate.
+
+Do not downgrade only because evidence is from a single country, a hospital or
+specialist setting, common eligibility exclusions, varied but same-class dose or
+delivery, absent timepoint text, or ordinary differences in usual care, unless
+the normalized input supports that these differences probably change the
+anticipated effect for the synthesis target.
+
+Use only the normalized input shown below. Do not infer from Summary of Findings
+comments, Summary of Findings footnotes, source SoF row text, benchmark
+alignment, benchmark gold labels, external web pages, or article lookup.
+
+Batch evidence:
+{{BATCH_EVIDENCE_JSON}}
+
+Return one JSON object matching this schema:
+{{BATCH_OUTPUT_SCHEMA_JSON}}

@@ -1,0 +1,92 @@
+Task: Generate a dynamic GRADE indirectness threshold policy for this evidence body.
+
+This is not the final GRADE judgement. Your job is to decide how sensitive or
+conservative each indirectness domain should be when the final adjudicator
+interprets visible PICO/context differences.
+
+Use only normalized_evidence and extracted_study_pico_profile. Do not use
+Summary of Findings comments, Summary of Findings footnotes, source SoF row
+text, benchmark alignment rationales, labels, external web pages, article
+lookup, or gold labels.
+
+Official framing:
+
+- GRADE indirectness compares the question of interest with the available
+  evidence for the current outcome/evidence body.
+- Important domains include population, intervention, comparator, direct
+  comparison, outcome, timepoint, and setting/context.
+- A visible difference is not automatically a reason to downgrade. It must be
+  important enough to plausibly reduce applicability of the pooled effect
+  estimate to the current target question.
+- Domain thresholds are not identical. Outcome construct/proxy/measurement
+  mismatch and intervention package/co-intervention changes often require a
+  more sensitive posture. Ordinary eligibility narrowing, usual-care variation,
+  country/site differences, and unspecified timepoint often require a more
+  conservative posture unless the input supports a concrete applicability
+  mechanism.
+
+Choose threshold_posture for every domain:
+
+- sensitive: small but clinically meaningful differences in this domain should
+  be taken seriously because this evidence body is vulnerable to that
+  indirectness mechanism.
+- balanced: downgrade only for clear, evidence-supported important differences.
+- conservative: visible differences in this domain should usually be treated as
+  within-scope or minor unless the input gives strong support for an important
+  applicability mechanism.
+
+Domain-specific guidance:
+
+- population: be sensitive for materially different life stage, disease
+  severity, risk group, or clinical subgroup when transferability to the target
+  population is doubtful. Be conservative for common eligibility criteria or a
+  clinically coherent subgroup of a broad target.
+- intervention: be sensitive for complex packages, co-interventions, different
+  components, devices/procedures/drugs, or delivery changes that alter the
+  causal contrast. Be conservative for same-class dose, duration, provider, or
+  delivery variation unless it plausibly changes applicability.
+- comparator: be sensitive when the comparator is a different active treatment
+  or usual-care context that changes the causal contrast. Be conservative for
+  ordinary placebo/no-treatment/usual-care wording variation.
+- direct_comparison: be sensitive for non-head-to-head, indirect, network, or
+  bridged evidence. Be conservative when the included rows directly compare the
+  target intervention and comparator.
+- outcome: be sensitive for proxy/surrogate outcomes, different constructs,
+  composites that do not match the current row outcome, incompatible assessment
+  methods, or follow-up that changes outcome meaning. Be conservative for
+  routine scale variation measuring the same construct.
+- timepoint: be sensitive when follow-up timing changes clinical meaning or the
+  target explicitly requires a different assessment window. Be conservative for
+  absent timepoint text or minor timing variation.
+- setting: be sensitive when setting, era, expertise, resource, or technology
+  context is part of the target or plausibly changes applicability. Be
+  conservative for country/site differences alone.
+
+For every domain, cite only short evidence_terms from the normalized input or
+extraction. If there is no supporting term, choose balanced or conservative and
+say the input is insufficient.
+
+JSON output contract:
+
+- Return exactly one valid JSON object and nothing else.
+- Do not wrap the answer in Markdown fences.
+- Do not include comments, explanations outside JSON, trailing commas, or
+  unquoted object keys.
+- Use double quotes for every JSON key and string value.
+- Use true, false, and null only as lowercase JSON literals.
+- Use empty arrays or empty strings when a schema field has no available
+  evidence.
+- The top-level object must match the schema below. Do not return a list as the
+  top-level value.
+
+Normalized evidence:
+
+{{EVIDENCE_JSON}}
+
+Extracted study-level PICO profile:
+
+{{EXTRACTION_JSON}}
+
+Return JSON matching this schema:
+
+{{THRESHOLD_SCHEMA_JSON}}

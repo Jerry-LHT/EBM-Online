@@ -35,17 +35,20 @@ def evaluate_predictions(predictions: list[dict[str, Any]], gold_by_id: dict[str
     rows = build_comparisons(predictions, gold_by_id)
     by_field = {field: [row for row in rows if row["field"] == field] for field in FIELDS}
     missing_prediction_count = sum(1 for instance_id in gold_by_id if instance_id not in {str(row.get("instance_id") or "") for row in predictions})
-    return {
+    inconsistency_metrics = _inconsistency_metrics(predictions, gold_by_id)
+    metrics = {
         "instance_count": len(gold_by_id),
         "comparison_count": len(rows),
         "missing_prediction_count": missing_prediction_count,
         "judgement_join_rate": _mean([row["covered"] for row in by_field["downgraded"]]),
         "downgraded_exact_rate": _mean([row["exact_match"] for row in by_field["downgraded"]]),
-        "severity_exact_rate": _mean([row["exact_match"] for row in by_field["severity"]]),
-        "levels_exact_rate": _mean([row["exact_match"] for row in by_field["levels"]]),
+        "severity_exact_rate": inconsistency_metrics["severity_exact_rate_on_evaluable"],
+        "levels_exact_rate": inconsistency_metrics["levels_exact_rate_on_evaluable"],
         "evaluable_exact_rate": _mean([row["exact_match"] for row in by_field["level_evaluable"]]),
         "all_fields_exact_rate": _all_fields_exact_rate(rows),
     }
+    metrics.update(inconsistency_metrics)
+    return metrics
 
 
 def _prediction_judgement(prediction: dict[str, Any]) -> dict[str, Any]:
@@ -81,3 +84,141 @@ def _value_equal(left: Any, right: Any) -> bool:
 
 def _mean(values: list[bool]) -> float:
     return sum(1 for value in values if value) / len(values) if values else 0.0
+
+
+def _inconsistency_metrics(predictions: list[dict[str, Any]], gold_by_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    predictions_by_id = {str(row.get("instance_id") or ""): row for row in predictions}
+    downgrade_pairs: list[tuple[str, str]] = []
+    evaluable_levels: list[tuple[int, int]] = []
+    evaluable_severity_matches: list[bool] = []
+    gold_level_unclear = 0
+    prediction_level_unclear = 0
+    gold_level_evaluable_count = 0
+
+    for instance_id, gold in gold_by_id.items():
+        prediction = predictions_by_id.get(instance_id) or {"instance_id": instance_id}
+        gold_judgement = gold.get("judgement") or {}
+        pred_judgement = _prediction_judgement(prediction)
+
+        gold_down = _downgrade_label(gold_judgement)
+        pred_down = _downgrade_label(pred_judgement)
+        if gold_down in {"yes", "no"}:
+            downgrade_pairs.append((gold_down, pred_down))
+
+        gold_level = _numeric_level(gold_judgement)
+        pred_level = _numeric_level(pred_judgement)
+        if gold_level is None:
+            gold_level_unclear += 1
+        else:
+            gold_level_evaluable_count += 1
+        if pred_level is None:
+            prediction_level_unclear += 1
+
+        if gold_level is not None and pred_level is not None:
+            evaluable_levels.append((gold_level, pred_level))
+            evaluable_severity_matches.append(_value_equal(gold_judgement.get("severity"), pred_judgement.get("severity")))
+
+    downgrade_prf = _binary_prf(downgrade_pairs)
+    level_prf = _level_prf(evaluable_levels)
+    return {
+        "downgrade_precision": downgrade_prf["precision"],
+        "downgrade_recall": downgrade_prf["recall"],
+        "downgrade_f1": downgrade_prf["f1"],
+        "downgrade_confusion_matrix": downgrade_prf["confusion_matrix"],
+        "downgrade_pair_count": len(downgrade_pairs),
+        "gold_level_unclear_count": gold_level_unclear,
+        "prediction_level_unclear_count": prediction_level_unclear,
+        "gold_level_evaluable_count": gold_level_evaluable_count,
+        "level_evaluable_pair_count": len(evaluable_levels),
+        "level_evaluable_pair_rate": len(evaluable_levels) / len(gold_by_id) if gold_by_id else 0.0,
+        "levels_exact_rate_on_evaluable": _mean([gold == pred for gold, pred in evaluable_levels]),
+        "severity_exact_rate_on_evaluable": _mean(evaluable_severity_matches),
+        "level_macro_precision_on_evaluable": level_prf["macro_precision"],
+        "level_macro_recall_on_evaluable": level_prf["macro_recall"],
+        "level_macro_f1_on_evaluable": level_prf["macro_f1"],
+        "level_per_class_prf": level_prf["per_class"],
+        "level_confusion_matrix": _level_confusion_matrix(evaluable_levels),
+        "level_ordinal_mae_on_evaluable": _ordinal_mae(evaluable_levels),
+    }
+
+
+def _numeric_level(judgement: dict[str, Any]) -> int | None:
+    if not judgement or not bool(judgement.get("level_evaluable")):
+        return None
+    try:
+        level = int(judgement.get("levels"))
+    except (TypeError, ValueError):
+        return None
+    return level if level in {0, 1, 2} else None
+
+
+def _downgrade_label(judgement: dict[str, Any]) -> str:
+    value = str(judgement.get("downgraded") or "").strip().lower()
+    return value if value in {"yes", "no"} else "unclear"
+
+
+def _binary_prf(pairs: list[tuple[str, str]]) -> dict[str, Any]:
+    labels = ["yes", "no", "unclear"]
+    matrix = {
+        gold_label: {
+            pred_label: sum(1 for gold, pred in pairs if gold == gold_label and pred == pred_label)
+            for pred_label in labels
+        }
+        for gold_label in labels
+    }
+    tp = matrix["yes"]["yes"]
+    fp = sum(matrix[gold_label]["yes"] for gold_label in labels if gold_label != "yes")
+    fn = sum(matrix["yes"][pred_label] for pred_label in labels if pred_label != "yes")
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "confusion_matrix": matrix,
+    }
+
+
+def _level_prf(rows: list[tuple[int, int]]) -> dict[str, Any]:
+    labels = [0, 1, 2]
+    macro_labels = [label for label in labels if any(gold == label or pred == label for gold, pred in rows)]
+    if not macro_labels:
+        macro_labels = labels
+    per_class: dict[str, dict[str, float]] = {}
+    precisions: list[float] = []
+    recalls: list[float] = []
+    f1s: list[float] = []
+    for label in labels:
+        tp = sum(1 for gold, pred in rows if gold == label and pred == label)
+        fp = sum(1 for gold, pred in rows if gold != label and pred == label)
+        fn = sum(1 for gold, pred in rows if gold == label and pred != label)
+        precision = tp / (tp + fp) if (tp + fp) else 0.0
+        recall = tp / (tp + fn) if (tp + fn) else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+        per_class[str(label)] = {"precision": precision, "recall": recall, "f1": f1, "support": sum(1 for gold, _ in rows if gold == label)}
+        if label in macro_labels:
+            precisions.append(precision)
+            recalls.append(recall)
+            f1s.append(f1)
+    return {
+        "macro_precision": sum(precisions) / len(precisions),
+        "macro_recall": sum(recalls) / len(recalls),
+        "macro_f1": sum(f1s) / len(f1s),
+        "per_class": per_class,
+    }
+
+
+def _level_confusion_matrix(rows: list[tuple[int, int]]) -> dict[str, dict[str, int]]:
+    labels = [0, 1, 2]
+    return {
+        str(gold_label): {
+            str(pred_label): sum(1 for gold, pred in rows if gold == gold_label and pred == pred_label)
+            for pred_label in labels
+        }
+        for gold_label in labels
+    }
+
+
+def _ordinal_mae(rows: list[tuple[int, int]]) -> float:
+    return sum(abs(pred - gold) for gold, pred in rows) / len(rows) if rows else 0.0

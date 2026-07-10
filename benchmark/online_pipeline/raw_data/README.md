@@ -56,3 +56,39 @@ benchmark/online_pipeline/raw_data/risk_of_bias/
 - article content 复用 `benchmark/online_pipeline/raw_data/cleaned_articles`，不在 `risk_of_bias/` 下重复存放。
 
 RoB builder 会把这些 source layer join 成标准化 benchmark 产物；它不会把预先 join 好的 final dataset 直接当作 benchmark dataset。
+
+## Meta Analysis
+
+当前 Meta Analysis v2 及其 Subtask 2 的 `cochrane_meta_v2-key-filter` 派生集依赖以下冻结数据：
+
+```text
+benchmark/online_pipeline/raw_data/meta_analysis/
+  source/official_analysis_csv_snapshot/
+  intermediate/
+```
+
+`official_analysis_csv_snapshot/` 是官方 Cochrane analysis CSV 快照。`intermediate/` 中的
+`setting_cleaned.jsonl`、analysis family、study-result rows、overall/subgroup estimates 与 source
+reports 是当前 v2 builder 的输入或审计产物；即使部分文件名包含 preview、audit 或 report，也不应因名称而
+归档，除非已经确认新的构建链不再读取或复现它们。
+
+## GRADE
+
+当前四个 GRADE domain 的唯一保留版本是 `grade_v4`。其构建依赖：
+
+```text
+benchmark/online_pipeline/raw_data/grade/
+  source/legacy_grade_benchmark_v2/
+  source/legacy_release_splits/
+  intermediate/alignment_v3/
+  intermediate/meta_analysis_workflow_for_alignment_v3/
+  intermediate/setting_cleaning/
+benchmark/online_pipeline/raw_data/analysis_settings/grade_required_v1/
+```
+
+这里的 `legacy_grade_benchmark_v2` 与 `legacy_release_splits` 是 v4 builder 使用的冻结 source 名称，
+不是可删除的旧 benchmark。`alignment_v3` 是当前 `grade_v4` 的正式对齐产物；其内部复用了旧版本命名的
+实现函数，但不表示该数据可以归档。
+
+历史 smoke 数据、已停用的 v3 数据构建产物和不再被当前 builder 引用的中间文件应移动到对应模块的
+`archive/`。`archive/` 只用于本地审计和复现实验历史，已被 Git 忽略，不能作为普通构建输入或提交内容。

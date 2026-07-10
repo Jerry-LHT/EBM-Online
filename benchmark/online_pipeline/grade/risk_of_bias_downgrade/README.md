@@ -32,8 +32,18 @@ method 需要判断该 SoF row 是否因为纳入研究存在方法学偏倚风�
       <td>210</td>
       <td><a href="datasets/grade_v3/schema.md">schema.md</a></td>
     </tr>
+    <tr>
+      <td><code>grade_v4</code></td>
+      <td>510</td>
+      <td>1</td>
+      <td>253</td>
+      <td>182</td>
+      <td><a href="datasets/grade_v4/schema.md">schema.md</a></td>
+    </tr>
   </tbody>
 </table>
+
+`grade_v3` 保留为远端既有基线；`grade_v4` 是当前重建的数据版本。两者并存，运行时应显式指定所用数据集版本。
 
 ## 3. 输入依据
 
