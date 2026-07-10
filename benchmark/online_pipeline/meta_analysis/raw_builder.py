@@ -18,10 +18,7 @@ from benchmark.online_pipeline.meta_analysis.builder import (
     freeze_raw_snapshot,
 )
 from benchmark.online_pipeline.shared.building import RAW_DATA_DIR
-from benchmark.online_pipeline.shared.analysis_settings.builder import (
-    DEFAULT_OUTPUT_ROOT as DEFAULT_SHARED_SETTING_ROOT,
-    build_grade_required_settings,
-)
+from benchmark.online_pipeline.shared.analysis_settings.builder import build_grade_required_settings
 
 
 DEFAULT_RAW_ROOT = RAW_DATA_DIR / MODULE
@@ -40,7 +37,7 @@ def main() -> None:
     parser.add_argument("--seed", default=DEFAULT_SEED)
     parser.add_argument("--sample-size", type=int, default=None)
     parser.add_argument("--allow-deterministic-fallback", action="store_true")
-    parser.add_argument("--shared-settings-root", default=str(DEFAULT_SHARED_SETTING_ROOT))
+    parser.add_argument("--shared-settings-root", default=None)
     parser.add_argument("--llm-config", default=None)
     parser.add_argument("--use-llm", action="store_true")
     parser.add_argument("--workers", type=int, default=4)
@@ -55,6 +52,8 @@ def main() -> None:
         result = freeze_raw_snapshot(raw_root=raw_root)
         print(raw_root / "source_manifest.json")
     elif args.command == "build-shared-settings":
+        if not args.shared_settings_root:
+            raise ValueError("--shared-settings-root is required for build-shared-settings")
         build_grade_required_settings(
             output_root=Path(args.shared_settings_root),
             meta_raw_root=raw_root,
@@ -87,17 +86,18 @@ def main() -> None:
         print(_format_dataset_result(result))
     elif args.command == "all":
         freeze_raw_snapshot(raw_root=raw_root)
-        build_grade_required_settings(
-            output_root=Path(args.shared_settings_root),
-            meta_raw_root=raw_root,
-            llm_config=args.llm_config,
-            use_llm=args.use_llm,
-            workers=args.workers,
-            resume=args.resume,
-            reviews=args.reviews,
-            limit=args.limit,
-            max_failures=args.max_setting_failures,
-        )
+        if args.shared_settings_root:
+            build_grade_required_settings(
+                output_root=Path(args.shared_settings_root),
+                meta_raw_root=raw_root,
+                llm_config=args.llm_config,
+                use_llm=args.use_llm,
+                workers=args.workers,
+                resume=args.resume,
+                reviews=args.reviews,
+                limit=args.limit,
+                max_failures=args.max_setting_failures,
+            )
         build_raw(
             raw_root=raw_root,
             allow_deterministic_fallback=args.allow_deterministic_fallback,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ FIELD_PROMPTS = {
     "outcome": PROMPT_DIR / "outcome_extraction_v1.txt",
     "timepoint": PROMPT_DIR / "timepoint_extraction_v1.txt",
 }
+LLM_RETRY_DELAYS_SECONDS = (2.0, 5.0, 10.0, 20.0)
 
 
 def extract_field_with_llm(*, field: str, candidate: dict[str, Any], llm_config: str | Path) -> dict[str, Any]:
@@ -24,12 +26,54 @@ def extract_field_with_llm(*, field: str, candidate: dict[str, Any], llm_config:
         raise ValueError(f"Unsupported LLM extraction field: {field}")
     config = load_llm_config(llm_config)
     prompt = render_prompt_template(FIELD_PROMPTS[field], {"input_json": json.dumps(candidate, ensure_ascii=False)})
-    parsed = call_llm_json(
+    parsed = _call_llm_json_with_retries(
         config=config,
         prompt=prompt,
         system=f"You extract the {field} field for a meta-analysis setting. Return only JSON.",
     )
     return coerce_field_extraction(field=field, candidate_id=str(candidate["candidate_id"]), parsed=parsed)
+
+
+def _call_llm_json_with_retries(**kwargs: Any) -> dict[str, Any]:
+    last_exc: Exception | None = None
+    for attempt in range(len(LLM_RETRY_DELAYS_SECONDS) + 1):
+        try:
+            return call_llm_json(**kwargs)
+        except Exception as exc:  # pragma: no cover - provider/network dependent
+            last_exc = exc
+            if attempt >= len(LLM_RETRY_DELAYS_SECONDS):
+                break
+            if not _should_retry_llm_error(exc):
+                break
+            time.sleep(LLM_RETRY_DELAYS_SECONDS[attempt])
+    if last_exc is None:
+        raise RuntimeError("LLM call failed without an exception")
+    raise last_exc
+
+
+def _should_retry_llm_error(exc: Exception) -> bool:
+    if isinstance(exc, (ConnectionError, TimeoutError, json.JSONDecodeError)):
+        return True
+    code = getattr(exc, "code", None)
+    if code in {408, 409, 429, 500, 502, 503, 504}:
+        return True
+    text = str(exc).lower()
+    return any(
+        token in text
+        for token in (
+            "429",
+            "too many requests",
+            "timeout",
+            "temporarily",
+            "rate limit",
+            "remote end closed connection",
+            "connection",
+            "ssl",
+            "eof",
+            "reset by peer",
+            "urlopen error",
+        )
+    )
 
 
 def coerce_field_extraction(*, field: str, candidate_id: str, parsed: dict[str, Any]) -> dict[str, Any]:

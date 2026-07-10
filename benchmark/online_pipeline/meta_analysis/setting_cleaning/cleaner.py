@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 import threading
@@ -15,6 +14,14 @@ from typing import Any
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 
+from benchmark.online_pipeline.meta_analysis.setting_cleaning.cache import (
+    comparison_cache_cleaning_metadata,
+    comparison_cache_key,
+    comparison_cache_row,
+    comparison_cache_metadata,
+    is_valid_comparison_cache_row,
+    setting_has_valid_comparison_cache,
+)
 from benchmark.online_pipeline.meta_analysis.setting_cleaning.llm import extract_field_with_llm
 from benchmark.online_pipeline.meta_analysis.setting_cleaning.sources import (
     assemble_setting,
@@ -39,7 +46,7 @@ FIELDS = ("comparison", "outcome", "timepoint")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Clean meta-analysis setting fields.")
-    parser.add_argument("command", choices=("normalize", "candidates", "preview", "full"))
+    parser.add_argument("command", choices=("normalize", "candidates", "preview", "full", "audit"))
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--seed", default=DEFAULT_SEED)
     parser.add_argument("--llm-config", default="llm.local.json")
@@ -57,6 +64,9 @@ def main() -> None:
     if args.command == "candidates":
         paths = write_normalized_sources()
         print(paths["field_candidates"])
+        return
+    if args.command == "audit":
+        print(audit_cleaned_settings()["report_path"])
         return
 
     suffix = ".preview30" if args.command == "preview" else ""
@@ -130,34 +140,35 @@ def run_cleaning(
     for field, candidates in candidates_by_field.items():
         write_jsonl(paths["field_candidates"][field], candidates, sort_keys=False)
 
-    comparison_cache = _load_comparison_cache(paths["comparison_cache"]) if resume else {}
-    comparison_cache.update(_comparison_cache_from_settings(paths["settings"]) if resume else {})
-    if comparison_cache:
-        write_jsonl(paths["comparison_cache"], list(comparison_cache.values()), sort_keys=False)
-    comparison_cache_lock = threading.Lock()
-
-    completed = _completed_candidate_ids(paths["settings"]) if resume else set()
-    pending = [family for family in families if family["candidate_id"] not in completed]
-    initial_completed = len(completed)
-    total_target = len(families)
-
     candidate_lookup = {
         field: {row["candidate_id"]: row for row in rows}
         for field, rows in candidates_by_field.items()
     }
 
+    comparison_cache = _load_comparison_cache(paths["comparison_cache"], candidate_lookup=candidate_lookup["comparison"]) if resume else {}
+    comparison_cache.update(_comparison_cache_from_settings(paths["settings"], candidate_lookup=candidate_lookup["comparison"]) if resume else {})
+    if comparison_cache:
+        write_jsonl(paths["comparison_cache"], list(comparison_cache.values()), sort_keys=False)
+    comparison_cache_lock = threading.Lock()
+
+    completed = _completed_candidate_ids(paths["settings"], candidate_lookup=candidate_lookup["comparison"]) if resume else set()
+    pending = [family for family in families if family["candidate_id"] not in completed]
+    initial_completed = len(completed)
+    total_target = len(families)
+
     def clean_one(family: dict[str, Any]) -> dict[str, Any]:
         candidate_id = family["candidate_id"]
-        comparison_key = _comparison_cache_key(candidate_lookup["comparison"][candidate_id])
+        comparison_candidate = candidate_lookup["comparison"][candidate_id]
+        comparison_key = comparison_cache_key(comparison_candidate)
         with comparison_cache_lock:
             comparison = comparison_cache.get(comparison_key)
         if comparison is None:
             fetched_comparison = extract_field_with_llm(
                 field="comparison",
-                candidate=candidate_lookup["comparison"][candidate_id],
+                candidate=comparison_candidate,
                 llm_config=llm_config,
             )
-            fetched_comparison = {**fetched_comparison, "cache_key": comparison_key}
+            fetched_comparison = comparison_cache_row(comparison_candidate, fetched_comparison)
             with comparison_cache_lock:
                 comparison = comparison_cache.get(comparison_key)
                 if comparison is None:
@@ -168,10 +179,10 @@ def run_cleaning(
             "comparison": comparison,
             **{
                 field: extract_field_with_llm(
-                field=field,
-                candidate=candidate_lookup[field][candidate_id],
-                llm_config=llm_config,
-            )
+                    field=field,
+                    candidate=candidate_lookup[field][candidate_id],
+                    llm_config=llm_config,
+                )
                 for field in ("outcome", "timepoint")
             },
         }
@@ -188,7 +199,7 @@ def run_cleaning(
             "field_methods": {field: fields[field].get("method") for field in FIELDS},
             "field_confidence": {field: fields[field].get("confidence") for field in FIELDS},
             "field_warnings": {field: fields[field].get("warnings") or [] for field in FIELDS},
-            "field_cache_keys": {"comparison": comparison_key},
+            **comparison_cache_cleaning_metadata(comparison_candidate),
         }
         return setting
 
@@ -250,7 +261,7 @@ def run_cleaning(
                 continue
             futures[executor.submit(clean_one, next_family)] = next_family
 
-    _prune_resolved_failures(paths=paths)
+    _prune_resolved_failures(paths=paths, candidate_lookup=candidate_lookup["comparison"])
     settings = _read_optional_jsonl(paths["settings"])
     failures = _read_optional_jsonl(paths["failures"])
     report = _quality_report(families=families, settings=settings, failures=failures)
@@ -266,6 +277,58 @@ def run_cleaning(
     write_jsonl(paths["raw_material"], _build_raw_material(families=families, settings=settings), sort_keys=False)
     _write_preview_markdown(paths["preview_md"], settings=settings)
     return {"settings_path": str(paths["settings"]), "report": report}
+
+
+def audit_cleaned_settings(*, suffix: str = "") -> dict[str, Any]:
+    families = read_jsonl(INTERMEDIATE_DIR / f"analysis_family_sources.linked{suffix}.jsonl")
+    candidates = build_field_candidates(families)["comparison"]
+    candidate_lookup = {row["candidate_id"]: row for row in candidates}
+    paths = _output_paths(suffix)
+    settings = _read_optional_jsonl(paths["settings"])
+    invalid_rows = []
+    old_key_rows = []
+    source_hash_mismatch_rows = []
+    known_badcase = None
+    for setting in settings:
+        candidate_id = str(setting.get("candidate_id") or "")
+        cleaning = setting.get("cleaning") or {}
+        cache_key = (((cleaning.get("field_cache_keys") or {}).get("comparison")) or "")
+        if str(cache_key).startswith("comparison::"):
+            old_key_rows.append(candidate_id)
+        candidate = candidate_lookup.get(candidate_id)
+        if candidate is None or not setting_has_valid_comparison_cache(setting, candidate):
+            invalid_rows.append(candidate_id or "<missing>")
+            if candidate is not None:
+                expected = comparison_cache_metadata(candidate)
+                source_hash = ((cleaning.get("field_cache_source_hashes") or {}).get("comparison"))
+                if source_hash and source_hash != expected["source_hash"]:
+                    source_hash_mismatch_rows.append(candidate_id)
+        if candidate_id == "candidate::CD001431::11::2":
+            comparison = setting.get("comparison") or {}
+            text = " ".join(str(comparison.get(key) or "") for key in ("experimental", "comparator")).lower()
+            known_badcase = {
+                "candidate_id": candidate_id,
+                "comparison": comparison,
+                "contains_surgery_or_conservative": "surgery" in text or "conservative" in text,
+            }
+    missing_candidate_ids = sorted(set(candidate_lookup) - {str(row.get("candidate_id") or "") for row in settings})
+    report = {
+        "settings_path": str(paths["settings"]),
+        "candidate_count": len(candidate_lookup),
+        "setting_count": len(settings),
+        "missing_count": len(missing_candidate_ids),
+        "invalid_v2_count": len(invalid_rows),
+        "old_comparison_key_count": len(old_key_rows),
+        "source_hash_mismatch_count": len(source_hash_mismatch_rows),
+        "invalid_examples": sorted(invalid_rows)[:20],
+        "old_key_examples": sorted(old_key_rows)[:20],
+        "source_hash_mismatch_examples": sorted(source_hash_mismatch_rows)[:20],
+        "missing_examples": missing_candidate_ids[:20],
+        "known_badcase_cd001431_11_2": known_badcase,
+    }
+    report_path = INTERMEDIATE_DIR / f"setting_cleaning_audit{suffix}.json"
+    write_json(report_path, report)
+    return {"report_path": str(report_path), "report": report}
 
 
 def _select_families(families: list[dict[str, Any]], *, limit: int | None, seed: str) -> list[dict[str, Any]]:
@@ -307,11 +370,11 @@ def _initialize_outputs(*, paths: dict[str, Any], resume: bool) -> None:
             path.unlink()
 
 
-def _prune_resolved_failures(*, paths: dict[str, Any]) -> None:
+def _prune_resolved_failures(*, paths: dict[str, Any], candidate_lookup: dict[str, dict[str, Any]]) -> None:
     failure_path = paths["failures"]
     if not failure_path.exists():
         return
-    completed = _completed_candidate_ids(paths["settings"])
+    completed = _completed_candidate_ids(paths["settings"], candidate_lookup=candidate_lookup)
     unresolved = [row for row in read_jsonl(failure_path) if str(row.get("candidate_id") or "") not in completed]
     write_jsonl(failure_path, unresolved, sort_keys=False)
 
@@ -331,18 +394,19 @@ def _should_stop_for_failures(
     return False
 
 
-def _load_comparison_cache(path: Path) -> dict[str, dict[str, Any]]:
+def _load_comparison_cache(path: Path, *, candidate_lookup: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     if not path.exists():
         return {}
     cache: dict[str, dict[str, Any]] = {}
     for row in read_jsonl(path):
         cache_key = str(row.get("cache_key") or "")
-        if cache_key:
+        candidate = candidate_lookup.get(str(row.get("candidate_id") or ""))
+        if cache_key and candidate is not None and is_valid_comparison_cache_row(row, candidate):
             cache[cache_key] = row
     return cache
 
 
-def _comparison_cache_from_settings(path: Path) -> dict[str, dict[str, Any]]:
+def _comparison_cache_from_settings(path: Path, *, candidate_lookup: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     if not path.exists():
         return {}
     cache: dict[str, dict[str, Any]] = {}
@@ -350,9 +414,17 @@ def _comparison_cache_from_settings(path: Path) -> dict[str, dict[str, Any]]:
         cache_key = ((row.get("cleaning") or {}).get("field_cache_keys") or {}).get("comparison")
         if not cache_key:
             continue
+        candidate = candidate_lookup.get(str(row.get("candidate_id") or ""))
+        if candidate is None or not setting_has_valid_comparison_cache(row, candidate):
+            continue
+        metadata = comparison_cache_metadata(candidate)
         cache[str(cache_key)] = {
             "candidate_id": row.get("candidate_id"),
             "cache_key": str(cache_key),
+            "cache_version": metadata["cache_version"],
+            "prompt_version": metadata["prompt_version"],
+            "source_hash": metadata["source_hash"],
+            "cache_input": metadata["cache_input"],
             "confidence": ((row.get("cleaning") or {}).get("field_confidence") or {}).get("comparison"),
             "warnings": ((row.get("cleaning") or {}).get("field_warnings") or {}).get("comparison") or [],
             "method": ((row.get("cleaning") or {}).get("field_methods") or {}).get("comparison") or "llm_comparison_v1",
@@ -360,23 +432,6 @@ def _comparison_cache_from_settings(path: Path) -> dict[str, dict[str, Any]]:
             "comparison_structure": row.get("comparison_structure") or {"type": "unclear", "rationale": None},
         }
     return cache
-
-
-def _comparison_cache_key(candidate: dict[str, Any]) -> str:
-    explicit = candidate.get("explicit_labels") or {}
-    payload = {
-        "analysis_group_name": _normalized_cache_text(candidate.get("analysis_group_name")),
-        "explicit_labels": {
-            "experimental_group_label": _normalized_cache_text(explicit.get("experimental_group_label")),
-            "control_group_label": _normalized_cache_text(explicit.get("control_group_label")),
-        },
-    }
-    digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
-    return f"comparison::{digest[:16]}"
-
-
-def _normalized_cache_text(value: Any) -> str:
-    return " ".join(str(value or "").lower().split())
 
 
 def _source_report(*, normalized: dict[str, list[dict[str, Any]]], families: list[dict[str, Any]]) -> dict[str, Any]:
@@ -543,10 +598,16 @@ def _write_preview_markdown(path: Path, *, settings: list[dict[str, Any]]) -> No
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def _completed_candidate_ids(path: Path) -> set[str]:
+def _completed_candidate_ids(path: Path, *, candidate_lookup: dict[str, dict[str, Any]]) -> set[str]:
     if not path.exists():
         return set()
-    return {str(row.get("candidate_id")) for row in read_jsonl(path)}
+    completed = set()
+    for row in read_jsonl(path):
+        candidate_id = str(row.get("candidate_id") or "")
+        candidate = candidate_lookup.get(candidate_id)
+        if candidate is not None and setting_has_valid_comparison_cache(row, candidate):
+            completed.add(candidate_id)
+    return completed
 
 
 def _read_optional_jsonl(path: Path) -> list[dict[str, Any]]:

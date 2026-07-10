@@ -21,7 +21,7 @@ from benchmark.online_pipeline.shared.run_utils import default_run_id
 
 TASK_DIR = Path(__file__).resolve().parents[1]
 MODULE_DIR = TASK_DIR.parent
-DEFAULT_DATASET = TASK_DIR / "datasets" / "cochrane_meta_v1" / "splits" / "smoke"
+DEFAULT_DATASET = TASK_DIR / "datasets" / "cochrane_meta_v2" / "splits" / "smoke"
 FIELDS = ["run_id", "method", "dataset", "split", "sample_size", "subgroup_estimate_join_rate", "subgroup_estimate_numeric_close_rate", "subgroup_difference_test_join_rate", "subgroup_difference_test_numeric_close_rate"]
 
 

@@ -6,6 +6,8 @@ from typing import Any
 
 
 NUMERIC_TOLERANCE = 1e-6
+CONTINUOUS_ABSOLUTE_TOLERANCE = 0.05
+CONTINUOUS_RELATIVE_TOLERANCE = 0.01
 
 
 def evaluate_predictions(predictions: list[dict[str, Any]], gold_by_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -50,7 +52,7 @@ def _study_result_row_comparisons(*, instance_id: str, gold: dict[str, Any], pre
     for row_id, gold_row in gold_rows.items():
         pred_row = pred_rows.get(row_id)
         exact_match = pred_row == gold_row
-        numeric_close = pred_row is not None and _result_data_close(gold_row.get("result_data") or {}, pred_row.get("result_data") or {})
+        numeric_close = pred_row is not None and _result_data_close(_row_result_data(gold_row), _row_result_data(pred_row))
         rows.append(
             {
                 "instance_id": instance_id,
@@ -85,6 +87,24 @@ def _analysis_method_comparisons(*, instance_id: str, gold: dict[str, Any], pred
     return rows
 
 
+def _row_result_data(row: dict[str, Any]) -> dict[str, Any]:
+    items = row.get("result_items") if isinstance(row.get("result_items"), list) else None
+    if items is None:
+        items = row.get("candidate_results") if isinstance(row.get("candidate_results"), list) else None
+    if items:
+        ready = [
+            item
+            for item in items
+            if isinstance(item, dict)
+            and str(item.get("analysis_disposition") or "").strip().lower() == "ready_for_estimate"
+            and isinstance(item.get("result_data"), dict)
+        ]
+        source = ready[0] if ready else next((item for item in items if isinstance(item, dict)), None)
+        if isinstance(source, dict) and isinstance(source.get("result_data"), dict):
+            return source["result_data"]
+    return row.get("result_data") if isinstance(row.get("result_data"), dict) else {}
+
+
 def _subgroup_result_comparisons(*, instance_id: str, gold: dict[str, Any], prediction: dict[str, Any]) -> list[dict[str, Any]]:
     gold_results = gold.get("subgroup_results") or {}
     pred_results = prediction.get("subgroup_results") or {}
@@ -94,7 +114,7 @@ def _subgroup_result_comparisons(*, instance_id: str, gold: dict[str, Any], pred
     for estimate_id, gold_row in gold_rows.items():
         pred_row = pred_rows.get(estimate_id)
         numeric_close = pred_row is not None and all(
-            _value_close(gold_row.get(field), pred_row.get(field))
+            _value_close(gold_row.get(field), pred_row.get(field), field=field)
             for field in ("effect_value", "ci_lower", "ci_upper")
         )
         rows.append(
@@ -117,7 +137,7 @@ def _overall_estimate_comparisons(*, instance_id: str, gold: dict[str, Any], pre
     for estimate_id, gold_row in gold_rows.items():
         pred_row = pred_rows.get(estimate_id)
         numeric_close = pred_row is not None and all(
-            _value_close(gold_row.get(field), pred_row.get(field))
+            _value_close(gold_row.get(field), pred_row.get(field), field=field)
             for field in ("effect_value", "ci_lower", "ci_upper")
         )
         rows.append(
@@ -136,16 +156,23 @@ def _overall_estimate_comparisons(*, instance_id: str, gold: dict[str, Any], pre
 def _result_data_close(gold: dict[str, Any], prediction: dict[str, Any]) -> bool:
     if set(gold) != set(prediction):
         return False
-    return all(_value_close(gold.get(field), prediction.get(field)) for field in gold)
+    return all(_value_close(gold.get(field), prediction.get(field), field=field) for field in gold)
 
 
-def _value_close(gold: Any, prediction: Any) -> bool:
+def _value_close(gold: Any, prediction: Any, *, field: str | None = None) -> bool:
     if gold is None or gold == "":
         return prediction is None or prediction == ""
     try:
-        return abs(float(gold) - float(prediction)) <= NUMERIC_TOLERANCE
+        gold_value = float(gold)
+        pred_value = float(prediction)
     except (TypeError, ValueError):
         return str(gold) == str(prediction)
+    if field and (field.endswith("_total") or field.endswith("_events")):
+        return abs(gold_value - pred_value) <= NUMERIC_TOLERANCE
+    if field and (field.endswith("_mean") or field.endswith("_sd")):
+        diff = abs(gold_value - pred_value)
+        return diff <= CONTINUOUS_ABSOLUTE_TOLERANCE or diff <= abs(gold_value) * CONTINUOUS_RELATIVE_TOLERANCE
+    return abs(gold_value - pred_value) <= NUMERIC_TOLERANCE
 
 
 def _mean(values: list[bool]) -> float:

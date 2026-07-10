@@ -23,12 +23,12 @@ method 需要为当前 setting 选择 effect measure、analysis model、statisti
   </thead>
   <tbody>
     <tr>
-      <td><code>cochrane_meta_v1</code></td>
-      <td>15122</td>
+      <td><code>cochrane_meta_v2</code></td>
+      <td>5308</td>
       <td>5</td>
-      <td>5083</td>
-      <td>10039</td>
-      <td><a href="datasets/cochrane_meta_v1/schema.md">schema.md</a></td>
+      <td>2638</td>
+      <td>2670</td>
+      <td><a href="datasets/cochrane_meta_v2/schema.md">schema.md</a></td>
     </tr>
   </tbody>
 </table>

@@ -79,7 +79,7 @@ def build_analysis_family_sources(
                 "study_row_source": _study_row_source(family_data_rows),
                 "subgroup_estimate_source": _subgroup_estimate_source(raw, family_subgroup_rows),
                 "source": {
-                    "dataset": "cochrane_meta_v1",
+                    "dataset": "cochrane_meta_official_snapshot",
                     "official_analysis_key": key,
                     "overall_source_file": row["source_file"],
                     "overall_row_index": row["row_index"],

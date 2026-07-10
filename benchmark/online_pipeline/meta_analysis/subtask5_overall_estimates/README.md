@@ -8,6 +8,10 @@ method 需要基于 `analysis_setting`、`study_result_rows` 和 `analysis_metho
 
 该 subtask 不抽取 study result rows，不重新选择 analysis method，也不生成 subgroup estimates。
 
+官方 overall pooled estimate 仍作为 gold 保留；但 `study_result_rows` 使用 canonical source-row assignment。
+如果一条官方 study row 同时属于 subgroup 和 overall，builder 会优先归到 subgroup，不在 overall instance
+里重复提供该 row。
+
 ## 2. 当前数据分布
 
 <table>
@@ -23,12 +27,12 @@ method 需要基于 `analysis_setting`、`study_result_rows` 和 `analysis_metho
   </thead>
   <tbody>
     <tr>
-      <td><code>cochrane_meta_v1</code></td>
-      <td>3818</td>
+      <td><code>cochrane_meta_v2</code></td>
+      <td>751</td>
       <td>5</td>
-      <td>1345</td>
-      <td>2473</td>
-      <td><a href="datasets/cochrane_meta_v1/schema.md">schema.md</a></td>
+      <td>364</td>
+      <td>387</td>
+      <td><a href="datasets/cochrane_meta_v2/schema.md">schema.md</a></td>
     </tr>
   </tbody>
 </table>

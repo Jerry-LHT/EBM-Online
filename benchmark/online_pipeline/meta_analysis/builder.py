@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from benchmark.online_pipeline.meta_analysis.setting_cleaning.cache import (
+    SETTING_CLEANING_VERSION,
+    setting_has_valid_comparison_cache,
+)
 from benchmark.online_pipeline.meta_analysis.setting_cleaning.sources import (
     build_analysis_family_sources,
+    build_field_candidates,
     normalize_analysis_model,
     normalize_official_rows,
     slug,
 )
-from benchmark.online_pipeline.shared.analysis_settings.builder import DEFAULT_OUTPUT_ROOT as DEFAULT_SHARED_SETTING_ROOT
 from benchmark.online_pipeline.shared.building import (
     DEFAULT_SEED,
     RAW_DATA_DIR,
@@ -30,10 +35,25 @@ from benchmark.online_pipeline.shared.report_utils import write_json
 
 
 MODULE = "meta_analysis"
-SOURCE = "cochrane_meta_v1"
+SOURCE = "cochrane_meta_v2"
+LEGACY_SOURCES = {"cochrane_meta_v1"}
+BUILDER_VERSION = "online-pipeline-builder-v4-meta"
 SMOKE_SIZE = 5
+SUBTASK2_SMOKE_REGRESSION_SOURCE_IDS = (
+    # Dichotomous semantic row alignment; source setting lacks the article row label.
+    "meta-analysis::CD001431::11::2::subgroup::4",
+    # Continuous outcome-measure ambiguity under a broad decisional-conflict setting.
+    "meta-analysis::CD001431::4::6::subgroup::2",
+    # Continuous complex table/timepoint/statistic selection.
+    "meta-analysis::CD004376::4::6::subgroup::1",
+    # Dichotomous timepoint and article-arm mapping.
+    "meta-analysis::CD011381::1::4::subgroup::23",
+    # Repeated targets for one study under the same setting; candidate recall is required.
+    "meta-analysis::CD011769::14::5::subgroup::1",
+)
 UPSTREAM_DATA_PACKAGE = Path("sr-cleaned/code/external/cleaned-pico/data_package/zip")
 CLEANED_ARTICLES_DIR = RAW_DATA_DIR / "cleaned_articles"
+SUBTASK2_AUDIT_REGISTRY = RAW_DATA_DIR / "meta_analysis" / "intermediate" / "subtask2_audit_registry.jsonl"
 
 
 def build_dataset(
@@ -46,7 +66,7 @@ def build_dataset(
     allow_deterministic_fallback: bool = False,
     shared_settings_root: str | Path | None = None,
 ) -> dict[str, Any]:
-    if source != SOURCE:
+    if source not in {SOURCE, *LEGACY_SOURCES}:
         raise ValueError(f"Unsupported meta_analysis source: {source}")
     raw_root = Path(source_url) if source_url else RAW_DATA_DIR / MODULE
     if not _raw_snapshot_exists(raw_root):
@@ -56,7 +76,7 @@ def build_dataset(
         allow_deterministic_fallback=allow_deterministic_fallback,
         shared_settings_root=shared_settings_root,
     )
-    records, manifest, analysis = load_source(raw_root=raw_root)
+    records, manifest, analysis = load_source(raw_root=raw_root, source=source)
     selected = select_records(records, sample_size=sample_size, seed=seed, module=MODULE)
     splits = build_splits(selected, seed=seed)
     dataset_result = write_dataset(
@@ -129,8 +149,8 @@ def build_raw(
     intermediate_dir = raw_root / "intermediate"
     intermediate_dir.mkdir(parents=True, exist_ok=True)
     normalized = normalize_official_rows(source_dir / "official_analysis_csv_snapshot")
-    settings_root = Path(shared_settings_root) if shared_settings_root else DEFAULT_SHARED_SETTING_ROOT
-    if settings_root.exists() and (settings_root / "setting_cleaned.jsonl").exists():
+    settings_root = Path(shared_settings_root) if shared_settings_root else None
+    if settings_root is not None and settings_root.exists() and (settings_root / "setting_cleaned.jsonl").exists():
         return _build_raw_from_shared_settings(raw_root=raw_root, normalized=normalized, settings_root=settings_root)
     all_families = build_analysis_family_sources(
         overall_rows=normalized["overall"],
@@ -186,6 +206,12 @@ def build_raw(
         records=records,
         binding_audit=binding_audit,
     )
+    analysis["setting_source"] = _setting_cleaning_source_report(
+        mode="meta_analysis_linked_article_required",
+        source_path=intermediate_dir / "setting_cleaned.jsonl",
+        linked_family_count=len(families),
+        setting_family_count=len(setting_families),
+    )
 
     write_jsonl(intermediate_dir / "official_overall_rows.jsonl", normalized["overall"], sort_keys=False)
     write_jsonl(intermediate_dir / "official_data_rows.jsonl", normalized["data_rows"], sort_keys=False)
@@ -217,6 +243,7 @@ def _build_raw_from_shared_settings(
     intermediate_dir.mkdir(parents=True, exist_ok=True)
     families = read_jsonl(settings_root / "family_sources.jsonl")
     setting_families = read_jsonl(settings_root / "setting_cleaned.jsonl")
+    _validate_setting_families(setting_families=setting_families, families=families, source_path=settings_root / "setting_cleaned.jsonl")
     review_ids = {str(row["review_id"]) for row in families}
     normalized = {
         key: [row for row in rows if str(row.get("review_id")) in review_ids]
@@ -270,6 +297,9 @@ def _build_raw_from_shared_settings(
         "settings_root": str(settings_root),
         "full_family_filter": "grade_gold_reviews",
         "article_link_filter_applied_before_subtask_build": False,
+        "setting_cleaning_version": SETTING_CLEANING_VERSION,
+        "setting_family_count": len(setting_families),
+        "setting_cleaned_sha256": sha256_file(settings_root / "setting_cleaned.jsonl"),
     }
 
     write_jsonl(intermediate_dir / "official_overall_rows.jsonl", normalized["overall"], sort_keys=False)
@@ -292,18 +322,19 @@ def _build_raw_from_shared_settings(
     return analysis
 
 
-def load_source(*, raw_root: Path) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
+def load_source(*, raw_root: Path, source: str = SOURCE) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
     records_path = raw_root / "intermediate" / "05_dataset_records.jsonl"
     if not records_path.exists():
         build_raw(raw_root=raw_root)
     records = read_jsonl(records_path)
     analysis = json.loads((raw_root / "intermediate" / "raw_quality_report.json").read_text(encoding="utf-8"))
     manifest = source_manifest(
-        source=SOURCE,
+        source=source,
         records=records,
         source_url=str(raw_root),
         raw_sha256=_raw_snapshot_sha256(raw_root),
         extra={
+            "builder_version": BUILDER_VERSION,
             "loader": "official_cochrane_analysis_csv_llm_direct_setting_cleaning",
             "raw_root": str(raw_root),
             "source_manifest": str(raw_root / "source_manifest.json"),
@@ -351,8 +382,11 @@ def write_dataset(
     dataset_analysis_data: dict[str, Any],
 ) -> None:
     article_bundle = _collect_shared_articles(records=records)
+    subtask2_key_filter = _subtask2_key_filter_enabled(dataset_name)
+    subtask2_pairwise_comparison_filter = _subtask2_pairwise_comparison_filter_enabled(dataset_name)
+    subtask2_candidate_filter = _subtask2_candidate_filter_enabled(dataset_name)
 
-    subtask_specs = _subtask_specs()
+    subtask_specs = _subtask_specs_for_dataset(dataset_name)
     subtask_counts: dict[str, dict[str, Any]] = {}
     dataset_dirs: dict[str, str] = {}
     for subtask_name, builder in subtask_specs.items():
@@ -361,7 +395,13 @@ def write_dataset(
         if subtask_dir.exists():
             shutil.rmtree(subtask_dir)
         subtask_dir.mkdir(parents=True, exist_ok=True)
-        subtask_records = builder(records, article_bundle=article_bundle)
+        subtask_records = builder(
+            records,
+            article_bundle=article_bundle,
+            subtask2_key_filter=subtask2_key_filter,
+            subtask2_pairwise_comparison_filter=subtask2_pairwise_comparison_filter,
+            subtask2_candidate_filter=subtask2_candidate_filter,
+        )
         if subtask_name == "subtask2_study_results":
             _write_shared_articles(shared_dir=subtask_dir / "shared", article_bundle=article_bundle)
             _write_package_records(subtask_dir / "shared", subtask_records)
@@ -406,7 +446,7 @@ def write_dataset(
         }
 
     split_manifest = {
-        "builder_version": "online-pipeline-builder-v3",
+        "builder_version": BUILDER_VERSION,
         "seed": seed,
         "module": MODULE,
         "dataset_name": dataset_name,
@@ -433,7 +473,7 @@ def write_dataset(
         },
     }
     build_manifest = {
-        "builder_version": "online-pipeline-builder-v3",
+        "builder_version": BUILDER_VERSION,
         "module": MODULE,
         "dataset_name": dataset_name,
         "source": source,
@@ -462,7 +502,9 @@ def _load_setting_families(
         cleaned = read_jsonl(cleaned_path)
         cleaned_by_id = {row["candidate_id"]: row for row in cleaned}
         if all(family["candidate_id"] in cleaned_by_id for family in families):
-            return [cleaned_by_id[family["candidate_id"]] for family in families]
+            setting_families = [cleaned_by_id[family["candidate_id"]] for family in families]
+            _validate_setting_families(setting_families=setting_families, families=families, source_path=cleaned_path)
+            return setting_families
     if allow_deterministic_fallback:
         fallback_path = intermediate_dir / "setting_adjudicated.deterministic_fallback.jsonl"
         if fallback_path.exists():
@@ -475,6 +517,42 @@ def _load_setting_families(
         "Run `PYTHONPATH=backend/src python benchmark/online_pipeline/meta_analysis/setting_cleaning/cleaner.py full "
         "--workers 16 --resume --llm-config llm.local.json` first."
     )
+
+
+def _validate_setting_families(*, setting_families: list[dict[str, Any]], families: list[dict[str, Any]], source_path: Path) -> None:
+    candidates = build_field_candidates(families)["comparison"]
+    candidate_lookup = {row["candidate_id"]: row for row in candidates}
+    invalid = []
+    for setting in setting_families:
+        candidate_id = str(setting.get("candidate_id") or "")
+        candidate = candidate_lookup.get(candidate_id)
+        if candidate is None or not setting_has_valid_comparison_cache(setting, candidate):
+            invalid.append(candidate_id or "<missing>")
+            if len(invalid) >= 10:
+                break
+    if invalid:
+        raise ValueError(
+            f"Setting cleaning artifact is not {SETTING_CLEANING_VERSION}: {source_path}. "
+            f"Invalid candidate examples: {', '.join(invalid)}. "
+            "Run meta_analysis setting_cleaning/cleaner.py full without old cache reuse first."
+        )
+
+
+def _setting_cleaning_source_report(
+    *,
+    mode: str,
+    source_path: Path,
+    linked_family_count: int,
+    setting_family_count: int,
+) -> dict[str, Any]:
+    return {
+        "mode": mode,
+        "source_path": str(source_path),
+        "setting_cleaning_version": SETTING_CLEANING_VERSION,
+        "linked_family_count": linked_family_count,
+        "setting_family_count": setting_family_count,
+        "setting_cleaned_sha256": sha256_file(source_path),
+    }
 
 
 def _load_linked_families(*, intermediate_dir: Path, all_families: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -625,10 +703,26 @@ def _build_study_result_rows(
                 }
             )
         applicability = _norm(raw.get("Applicability"))
-        if (
+        should_join_overall = (
             "overall" in applicability
             or not family_id in families_with_official_subgroups
             or (not applicability and not _norm(subgroup_label))
+        )
+        if subgroup_setting and should_join_overall:
+            audit.append(
+                {
+                    "analysis_key": source_row["analysis_key"],
+                    "row_index": source_row["row_index"],
+                    "status": "skipped_overall_due_to_subgroup_preference",
+                    "subgroup_label": subgroup_label,
+                    "applicability": raw.get("Applicability"),
+                    "overall_setting_id": overall.get("setting_id"),
+                    "subgroup_setting_id": subgroup_setting.get("setting_id"),
+                }
+            )
+            should_join_overall = False
+        if (
+            should_join_overall
         ):
             targets.append(overall)
         for setting in targets:
@@ -1010,8 +1104,12 @@ def _raw_quality_report(
         if estimate.get("source_joined")
     )
     subgroup_data_row_unmatched_count = sum(1 for row in binding_audit if row.get("status") == "subgroup_label_unmatched")
+    subgroup_preferred_overall_skip_count = sum(
+        1 for row in binding_audit if row.get("status") == "skipped_overall_due_to_subgroup_preference"
+    )
     return {
         "source": SOURCE,
+        "study_result_row_policy": "canonical_source_row_assignment; subgroup rows are preferred over duplicated overall rows when official Applicability is SUBGROUP_AND_OVERALL",
         "official_overall_row_count": len(normalized["overall"]),
         "official_data_row_count": len(normalized["data_rows"]),
         "official_subgroup_estimate_row_count": len(normalized["subgroup_estimates"]),
@@ -1029,6 +1127,7 @@ def _raw_quality_report(
         "subgroup_estimate_joined_count": subgroup_estimate_joined_count,
         "subgroup_estimate_unjoined_count": subgroup_estimate_count - subgroup_estimate_joined_count,
         "subgroup_data_row_unmatched_count": subgroup_data_row_unmatched_count,
+        "subgroup_preferred_overall_skip_count": subgroup_preferred_overall_skip_count,
         "dataset_record_count": len(records),
         "binding_audit_count": len(binding_audit),
         "data_type_counts": dict(sorted(Counter(setting.get("data_type") for setting in analysis_settings).items())),
@@ -1116,8 +1215,23 @@ def _fill_subtask_smoke_records(
     subtask_name: str,
 ) -> list[dict[str, Any]]:
     if len(split_records) >= min(SMOKE_SIZE, len(all_subtask_records)):
-        return sorted(split_records, key=lambda record: record["source_id"])
-    selected = {record["source_id"]: record for record in split_records}
+        if subtask_name != "subtask2_study_results":
+            return sorted(split_records, key=lambda record: record["source_id"])
+        selected = {record["source_id"]: record for record in split_records}
+    else:
+        selected = {record["source_id"]: record for record in split_records}
+    if subtask_name == "subtask2_study_results":
+        records_by_id = {record["source_id"]: record for record in all_subtask_records}
+        for source_id in SUBTASK2_SMOKE_REGRESSION_SOURCE_IDS:
+            record = records_by_id.get(source_id)
+            if record is not None:
+                selected[source_id] = record
+        if len(selected) >= min(SMOKE_SIZE, len(all_subtask_records)):
+            ordered_selected = sorted(selected.values(), key=lambda record: record["source_id"])
+            regression_ids = set(SUBTASK2_SMOKE_REGRESSION_SOURCE_IDS)
+            required = [record for record in ordered_selected if record["source_id"] in regression_ids]
+            optional = [record for record in ordered_selected if record["source_id"] not in regression_ids]
+            return sorted((required + optional)[: min(SMOKE_SIZE, len(all_subtask_records))], key=lambda record: record["source_id"])
     dev_source_ids = {record["source_id"] for record in dev_records}
     dev_candidates = [record for record in all_subtask_records if record["source_id"] in dev_source_ids]
     fallback_candidates = dev_candidates or all_subtask_records
@@ -1137,6 +1251,7 @@ def _subtask_manifest_coverage(*, subtask_name: str, records: list[dict[str, Any
     linked_gold_row_total = 0
     excluded_missing_article_row_total = 0
     status_counts: Counter[str] = Counter()
+    source_support_status_counts: Counter[str] = Counter()
     missing_study_total = 0
     for record in records:
         coverage = ((record.get("instance") or {}).get("article_coverage") or {})
@@ -1146,6 +1261,8 @@ def _subtask_manifest_coverage(*, subtask_name: str, records: list[dict[str, Any
         linked_gold_row_total += int(coverage.get("linked_gold_row_count") or 0)
         excluded_missing_article_row_total += int(coverage.get("excluded_missing_article_gold_row_count") or 0)
         status_counts[str(coverage.get("coverage_status") or "unknown")] += 1
+        for status, count in (coverage.get("source_support_status_counts") or {}).items():
+            source_support_status_counts[str(status)] += int(count or 0)
         missing_study_total += len(coverage.get("missing_study_ids") or [])
     return {
         "primary_eval_count": primary_eval_count,
@@ -1154,6 +1271,7 @@ def _subtask_manifest_coverage(*, subtask_name: str, records: list[dict[str, Any
         "excluded_missing_article_gold_row_count": excluded_missing_article_row_total,
         "missing_article_study_count": missing_study_total,
         "coverage_status_counts": dict(sorted(status_counts.items())),
+        "source_support_status_counts": dict(sorted(source_support_status_counts.items())),
     }
 
 
@@ -1229,24 +1347,36 @@ def _write_subtask_schema(path: Path, *, subtask_name: str) -> None:
             "    - `population_scope`, `comparison`, `comparison_structure`\n"
             "    - `outcome`, `timepoint`, `subgroup`, `subgroup_scope`\n"
             "    - `data_type`, `effect_measure`\n"
-            "    - `eligible_study_ids`, `source_context`, `scope_flags`, `setting_quality`\n"
+            "    - `eligible_study_ids`, optional `eligible_study_candidates`, `source_context`, `scope_flags`, `setting_quality`\n"
+            "    - `eligible_study_candidates[]`, when present, contains `study_id`, optional `article_id`, and either\n"
+            "      `extraction_task_id` for candidate-set datasets or legacy `extraction_targets[]` with `target_id`\n"
+            "    - candidate-set datasets may include `extraction_hint_parts`, a benchmark-side non-numeric context object\n"
+            "      that adapters can convert to workflow `extraction_hint` using an explicit hint policy\n"
             "  - `included_studies`: eligible study IDs for this setting instance\n"
             "  - `article_ids`: article IDs available in `../shared/article_index.jsonl`\n"
             "  - `article_study_links`: `study_id -> article_id` links for this instance\n"
             "  - `article_coverage`: coverage summary with eligible count, linked count, missing study IDs,\n"
             "    linked gold row count, excluded missing-article gold row count, and `coverage_status`\n"
             "  - `source_context`: auxiliary context such as study-row footnotes\n"
+            "    - current v1 records may use this as a compatibility source for target-level non-numeric extraction hints\n"
             "  - `source_refs`: source provenance including official analysis key\n"
             "- shared article layer\n"
             "  - `../shared/article_index.jsonl`: `article_id`, `study_id`, `relative_path`, `source`, `table_count`, `has_xml_content`\n"
             "  - `../shared/articles/*.json`: cleaned article payloads consumed by Subtask 2 methods\n"
+            "- dataset variants\n"
+            "  - `*-key-filter`: keeps rows whose required gold numeric values are directly present in the current article inputs\n"
+            "  - `*-pairwise-comparison-filter`: Subtask-2-only legacy target-slot dataset; additionally keeps only settings with explicit pairwise setting-level comparison from `analysis_group_name`, non-empty experimental/comparator labels, and rows whose subgroup label does not introduce another pairwise comparison\n"
+            "  - `*-candidate-filter`: Subtask-2-only candidate-set dataset; groups official rows by setting-study and evaluates `candidate_results[]` with set-level matching\n"
             "- `gold.jsonl`\n"
             "  - `instance_id`, `review_id`, `source`\n"
-            "  - `study_result_rows`: official joined study rows whose `study_id` has at least one linked article; each row contains\n"
+            "  - `study_result_rows`: canonical official study rows whose `study_id` has at least one linked article; when the same official row is both subgroup and overall, the subgroup assignment is preferred; each row contains\n"
             "    - `row_id`, `setting_id`, `study_id`, `study_year`, `footnote`\n"
             "    - `extraction_status`, `data_type`\n"
             "    - `comparison`, `outcome`, `subgroup`\n"
             "    - `result_data`\n"
+            "    - optional benchmark-side audit fields: `review_label`, `audit_note`\n"
+            "  - `study_result_candidate_sets` when present: one gold candidate set per setting-study extraction task, with `gold_candidate_results[]`\n"
+            "    - optional benchmark-side audit fields: `review_label`, `audit_note`\n"
             "    - `source`\n"
         ),
         "subtask3_analysis_methods": (
@@ -1270,7 +1400,7 @@ def _write_subtask_schema(path: Path, *, subtask_name: str) -> None:
             "- `instances.jsonl`\n"
             "  - `instance_id`, `review_id`\n"
             "  - `analysis_setting`\n"
-            "  - `study_result_rows`: official joined study rows for this setting\n"
+            "  - `study_result_rows`: canonical official study rows for this setting; duplicated overall/subgroup source rows keep the subgroup assignment\n"
             "  - `analysis_methods`: official method record for this setting\n"
             "  - `included_studies`, `source_context`, `source_refs`\n"
             "- `gold.jsonl`\n"
@@ -1292,7 +1422,7 @@ def _write_subtask_schema(path: Path, *, subtask_name: str) -> None:
             "- `instances.jsonl`\n"
             "  - `instance_id`, `review_id`\n"
             "  - `analysis_setting`\n"
-            "  - `study_result_rows`: official joined study rows for this setting\n"
+            "  - `study_result_rows`: canonical official study rows for this setting; duplicated overall/subgroup source rows keep the subgroup assignment\n"
             "  - `analysis_methods`: official method record for this setting\n"
             "  - `included_studies`, `source_context`, `source_refs`\n"
             "- `gold.jsonl`\n"
@@ -1346,7 +1476,7 @@ def _write_subtask_manifests(
     dataset_analysis_data: dict[str, Any],
 ) -> None:
     split_manifest = {
-        "builder_version": "online-pipeline-builder-v3",
+        "builder_version": BUILDER_VERSION,
         "seed": seed,
         "module": MODULE,
         "subtask": subtask_name,
@@ -1365,7 +1495,7 @@ def _write_subtask_manifests(
         },
     }
     build_manifest = {
-        "builder_version": "online-pipeline-builder-v3",
+        "builder_version": BUILDER_VERSION,
         "module": MODULE,
         "subtask": subtask_name,
         "dataset_name": subtask_dir.name,
@@ -1422,15 +1552,34 @@ def _subtask_specs() -> dict[str, Any]:
     }
 
 
-def _build_subtask2_records(records: list[dict[str, Any]], *, article_bundle: dict[str, Any]) -> list[dict[str, Any]]:
+def _subtask_specs_for_dataset(dataset_name: str) -> dict[str, Any]:
+    if _subtask2_pairwise_comparison_filter_enabled(dataset_name) or _subtask2_candidate_filter_enabled(dataset_name):
+        return {"subtask2_study_results": _build_subtask2_records}
+    return _subtask_specs()
+
+
+def _build_subtask2_records(
+    records: list[dict[str, Any]],
+    *,
+    article_bundle: dict[str, Any],
+    subtask2_key_filter: bool = False,
+    subtask2_pairwise_comparison_filter: bool = False,
+    subtask2_candidate_filter: bool = False,
+) -> list[dict[str, Any]]:
     subtask_records: list[dict[str, Any]] = []
     article_ids_by_study_id = article_bundle.get("article_ids_by_study_id") or {}
+    audit_registry = _load_subtask2_audit_registry()
+    source_support_enabled = subtask2_key_filter or subtask2_pairwise_comparison_filter or subtask2_candidate_filter
+    article_text_by_id = _article_text_by_id(article_bundle=article_bundle) if source_support_enabled else {}
+    article_table_count_by_id = _article_table_count_by_id(article_bundle=article_bundle) if source_support_enabled else {}
     for record in records:
         gold = record["gold"]
         study_result_rows = gold.get("study_result_rows") or []
         if not study_result_rows:
             continue
         instance = record["instance"]
+        if (subtask2_pairwise_comparison_filter or subtask2_candidate_filter) and not _subtask2_setting_has_high_quality_pairwise_comparison(instance.get("analysis_setting") or {}):
+            continue
         included_studies = [str(study_id) for study_id in (instance.get("included_studies") or []) if study_id]
         gold_study_ids = sorted({str(row.get("study_id") or "") for row in study_result_rows if row.get("study_id")})
         article_study_links = []
@@ -1446,6 +1595,62 @@ def _build_subtask2_records(records: list[dict[str, Any]], *, article_bundle: di
         ]
         if not linked_study_result_rows:
             continue
+        source_support = _subtask2_source_support(
+            rows=linked_study_result_rows,
+            article_ids_by_study_id=article_ids_by_study_id,
+            article_text_by_id=article_text_by_id,
+            article_table_count_by_id=article_table_count_by_id,
+            enabled=source_support_enabled,
+        )
+        if subtask2_key_filter:
+            linked_study_result_rows = [
+                row
+                for row in linked_study_result_rows
+                if source_support["row_support"].get(str(row.get("row_id") or ""), {}).get("include_in_primary_eval")
+            ]
+        if subtask2_pairwise_comparison_filter or subtask2_candidate_filter:
+            linked_study_result_rows = [
+                row
+                for row in linked_study_result_rows
+                if _subtask2_row_has_high_quality_pairwise_comparison(row)
+                and source_support["row_support"].get(str(row.get("row_id") or ""), {}).get("include_in_primary_eval")
+            ]
+            source_support = _subtask2_filter_source_support(source_support=source_support, rows=linked_study_result_rows)
+            linked_study_ids = {str(row.get("study_id") or "") for row in linked_study_result_rows if row.get("study_id")}
+            seen_article_ids = {
+                article_id
+                for study_id in linked_study_ids
+                for article_id in article_ids_by_study_id.get(study_id, [])
+            }
+            article_study_links = [
+                link
+                for link in article_study_links
+                if str(link.get("study_id") or "") in linked_study_ids
+            ]
+        if not linked_study_result_rows:
+            continue
+        analysis_setting = {
+            **instance["analysis_setting"],
+            "eligible_study_candidates": _subtask2_eligible_study_candidates(
+                setting=instance["analysis_setting"],
+                rows=linked_study_result_rows,
+                source_context=instance.get("source_context") or {},
+                article_ids_by_study_id=article_ids_by_study_id,
+                article_table_count_by_id=article_table_count_by_id,
+                candidate_set_mode=subtask2_candidate_filter,
+            ),
+        }
+        candidate_sets = _subtask2_study_result_candidate_sets(
+            setting=instance["analysis_setting"],
+            rows=linked_study_result_rows,
+            article_ids_by_study_id=article_ids_by_study_id,
+            article_table_count_by_id=article_table_count_by_id,
+            audit_registry=audit_registry,
+        ) if subtask2_candidate_filter else []
+        labeled_linked_study_result_rows = _apply_subtask2_review_labels(
+            rows=linked_study_result_rows,
+            audit_registry=audit_registry,
+        )
         excluded_missing_article_rows = [
             row for row in study_result_rows if str(row.get("study_id") or "") not in linked_study_ids
         ]
@@ -1462,7 +1667,7 @@ def _build_subtask2_records(records: list[dict[str, Any]], *, article_bundle: di
                 "instance": {
                     "instance_id": instance["instance_id"],
                     "review_id": instance["review_id"],
-                    "analysis_setting": instance["analysis_setting"],
+                    "analysis_setting": analysis_setting,
                     "included_studies": included_studies,
                     "article_ids": sorted(seen_article_ids),
                     "article_study_links": article_study_links,
@@ -1478,14 +1683,22 @@ def _build_subtask2_records(records: list[dict[str, Any]], *, article_bundle: di
                         "coverage_status": coverage_status,
                         "full_coverage": coverage_status == "full",
                         "primary_eval_eligible": True,
+                        "source_support_filter": _subtask2_source_support_filter_name(
+                            key_filter=subtask2_key_filter,
+                            pairwise_comparison_filter=subtask2_pairwise_comparison_filter,
+                            candidate_filter=subtask2_candidate_filter,
+                        ),
+                        "source_support_status_counts": source_support["status_counts"],
                     },
+                    "source_support": source_support,
                     "source_context": instance.get("source_context") or {},
                     "source_refs": instance.get("source_refs") or {},
                 },
                 "gold": {
                     "instance_id": gold["instance_id"],
                     "review_id": gold["review_id"],
-                    "study_result_rows": linked_study_result_rows,
+                    "study_result_rows": labeled_linked_study_result_rows,
+                    **({"study_result_candidate_sets": candidate_sets} if subtask2_candidate_filter else {}),
                     "source": gold.get("source") or {},
                 },
             }
@@ -1493,7 +1706,444 @@ def _build_subtask2_records(records: list[dict[str, Any]], *, article_bundle: di
     return subtask_records
 
 
-def _build_subtask3_records(records: list[dict[str, Any]], *, article_bundle: dict[str, Any]) -> list[dict[str, Any]]:
+def _subtask2_eligible_study_candidates(
+    *,
+    setting: dict[str, Any],
+    rows: list[dict[str, Any]],
+    source_context: dict[str, Any],
+    article_ids_by_study_id: dict[str, list[str]],
+    article_table_count_by_id: dict[str, int] | None = None,
+    candidate_set_mode: bool = False,
+) -> list[dict[str, Any]]:
+    hints_by_study = _source_context_hints_by_study(source_context)
+    grouped: dict[str, list[tuple[int, dict[str, Any]]]] = defaultdict(list)
+    for row_index, row in enumerate(rows):
+        study_id = str(row.get("study_id") or "")
+        if not study_id:
+            continue
+        grouped[study_id].append((row_index, row))
+    candidates: list[dict[str, Any]] = []
+    for study_id, indexed_rows in grouped.items():
+        article_id = _preferred_subtask2_article_id(
+            article_ids=article_ids_by_study_id.get(study_id, []),
+            article_table_count_by_id=article_table_count_by_id or {},
+        )
+        hint_parts = _subtask2_extraction_hint_parts(
+            setting=setting,
+            hints=hints_by_study.get(study_id) or [],
+        )
+        if candidate_set_mode:
+            setting_id = str((indexed_rows[0][1]).get("setting_id") or setting.get("setting_id") or "")
+            candidates.append(
+                {
+                    "study_id": study_id,
+                    "article_id": article_id,
+                    "extraction_task_id": _extraction_task_id_for_subtask2(setting_id=setting_id, study_id=study_id),
+                    "extraction_hint_parts": hint_parts,
+                }
+            )
+            continue
+        extraction_targets = []
+        for slot, (_row_index, row) in enumerate(indexed_rows):
+            extraction_targets.append(
+                {
+                    "target_id": _target_id_for_subtask2(setting_id=str(row.get("setting_id") or setting.get("setting_id") or ""), study_id=study_id, slot=slot),
+                    "extraction_hint": _target_extraction_hint_from_source_context(hints=hints_by_study.get(study_id) or [], slot=slot),
+                    "extraction_hint_parts": _subtask2_extraction_hint_parts(
+                        setting=setting,
+                        hints=hints_by_study.get(study_id) or [],
+                        slot=slot,
+                    ),
+                }
+            )
+        candidates.append(
+            {
+                "study_id": study_id,
+                "article_id": article_id,
+                "extraction_hint_parts": hint_parts,
+                "extraction_targets": extraction_targets,
+            }
+        )
+    return candidates
+
+
+def _subtask2_study_result_candidate_sets(
+    *,
+    setting: dict[str, Any],
+    rows: list[dict[str, Any]],
+    article_ids_by_study_id: dict[str, list[str]],
+    article_table_count_by_id: dict[str, int] | None = None,
+    audit_registry: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        study_id = str(row.get("study_id") or "")
+        if study_id:
+            grouped[study_id].append(row)
+    candidate_sets: list[dict[str, Any]] = []
+    for study_id, study_rows in grouped.items():
+        setting_id = str((study_rows[0]).get("setting_id") or setting.get("setting_id") or "")
+        article_id = _preferred_subtask2_article_id(
+            article_ids=article_ids_by_study_id.get(study_id, []),
+            article_table_count_by_id=article_table_count_by_id or {},
+        )
+        candidate_sets.append(
+            {
+                "extraction_task_id": _extraction_task_id_for_subtask2(setting_id=setting_id, study_id=study_id),
+                "setting_id": setting_id,
+                "study_id": study_id,
+                "article_id": article_id,
+                **_subtask2_candidate_set_review_label(
+                    study_rows=study_rows,
+                    audit_registry=audit_registry or {},
+                ),
+                "gold_candidate_results": [
+                    _gold_row_as_candidate(
+                        row=row,
+                        index=index,
+                        review_meta=(audit_registry or {}).get(str(row.get("row_id") or "")),
+                    )
+                    for index, row in enumerate(sorted(study_rows, key=lambda item: str(item.get("row_id") or "")))
+                ],
+            }
+        )
+    return sorted(candidate_sets, key=lambda item: str(item.get("extraction_task_id") or ""))
+
+
+def _gold_row_as_candidate(*, row: dict[str, Any], index: int, review_meta: dict[str, Any] | None = None) -> dict[str, Any]:
+    comparison = row.get("comparison") or {}
+    outcome = row.get("outcome") or {}
+    subgroup = row.get("subgroup") or {}
+    return {
+        "candidate_id": f"gold-candidate::{row.get('row_id') or index}",
+        "source_row_id": row.get("row_id"),
+        "match_status": "matched",
+        "include_in_estimate": True,
+        "study_result_setting": {
+            "row_label": subgroup.get("level"),
+            "outcome_label": outcome.get("label"),
+            "outcome_measure": None,
+            "timepoint": outcome.get("timepoint"),
+            "statistic_type": None,
+            "population_or_subgroup": subgroup.get("level"),
+            "experimental_arm_label": comparison.get("experimental_arm"),
+            "control_arm_label": comparison.get("control_arm"),
+            "table_local_notes": row.get("footnote"),
+        },
+        "data_type": row.get("data_type"),
+        "result_data": row.get("result_data") or {},
+        **(review_meta or {}),
+        "source": row.get("source") or {},
+    }
+
+
+def _preferred_subtask2_article_id(*, article_ids: list[str], article_table_count_by_id: dict[str, int]) -> str | None:
+    if not article_ids:
+        return None
+    return max(article_ids, key=lambda article_id: (int(article_table_count_by_id.get(article_id) or 0) > 0, article_id))
+
+
+def _source_context_hints_by_study(source_context: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    hints_by_study: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in source_context.get("study_row_footnotes") or []:
+        if not isinstance(item, dict):
+            continue
+        study_id = str(item.get("study_id") or "")
+        if study_id:
+            hints_by_study[study_id].append(item)
+    for hints in hints_by_study.values():
+        hints.sort(key=lambda item: _to_optional_int(item.get("row_index")) or 0)
+    return hints_by_study
+
+
+def _subtask2_extraction_hint_parts(*, setting: dict[str, Any], hints: list[dict[str, Any]], slot: int | None = None) -> dict[str, Any]:
+    subgroup = setting.get("subgroup") if isinstance(setting.get("subgroup"), dict) else {}
+    selected_hints = hints
+    if slot is not None:
+        selected_hints = [hints[slot]] if slot < len(hints) else []
+    return {
+        "analysis_name": _clean_optional_text(setting.get("analysis_name")),
+        "analysis_group_name": _clean_optional_text(setting.get("analysis_group_name")),
+        "setting_subgroup": _clean_optional_text(subgroup.get("level")),
+        "study_row_hints": [
+            {
+                "subgroup": _clean_optional_text(hint.get("subgroup")),
+                "footnote": _clean_optional_text(hint.get("footnote")),
+                "applicability": _clean_optional_text(hint.get("applicability")),
+            }
+            for hint in selected_hints
+            if isinstance(hint, dict)
+            and any(_clean_optional_text(hint.get(key)) for key in ("subgroup", "footnote", "applicability"))
+        ],
+        "source": "official_analysis_non_numeric_context",
+    }
+
+
+def _target_extraction_hint_from_source_context(*, hints: list[dict[str, Any]], slot: int) -> str | None:
+    hint = hints[slot] if slot < len(hints) else None
+    if hint is None:
+        return None
+    values = [hint.get("subgroup"), hint.get("footnote")]
+    text = " ; ".join(str(value) for value in values if value)
+    return _clean_optional_text(text)
+
+
+def _target_id_for_subtask2(*, setting_id: str, study_id: str, slot: int) -> str:
+    return f"target::{setting_id}::{_target_slug(study_id)}::{slot}"
+
+
+def _extraction_task_id_for_subtask2(*, setting_id: str, study_id: str) -> str:
+    return f"task::{setting_id}::{_target_slug(study_id)}"
+
+
+def _target_slug(value: str) -> str:
+    import re
+
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-").lower()
+    return cleaned or "study"
+
+
+def _clean_optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = " ".join(str(value).split())
+    return text or None
+
+
+def _subtask2_key_filter_enabled(dataset_name: str) -> bool:
+    return "key-filter" in dataset_name
+
+
+def _subtask2_pairwise_comparison_filter_enabled(dataset_name: str) -> bool:
+    return "pairwise-comparison-filter" in dataset_name
+
+
+def _subtask2_candidate_filter_enabled(dataset_name: str) -> bool:
+    return "candidate-filter" in dataset_name
+
+
+def _subtask2_source_support_filter_name(*, key_filter: bool, pairwise_comparison_filter: bool, candidate_filter: bool = False) -> str:
+    if candidate_filter:
+        return "key_gold_direct+pairwise_setting_comparison+candidate_set"
+    if pairwise_comparison_filter:
+        return "key_gold_direct+pairwise_setting_comparison"
+    return "key_gold_direct" if key_filter else "none"
+
+
+def _subtask2_setting_has_high_quality_pairwise_comparison(setting: dict[str, Any]) -> bool:
+    comparison = setting.get("comparison") or {}
+    structure = setting.get("comparison_structure") or {}
+    return (
+        structure.get("type") == "pairwise"
+        and bool(_clean_optional_text(comparison.get("experimental")))
+        and bool(_clean_optional_text(comparison.get("comparator")))
+        and _contains_pairwise_marker(setting.get("analysis_group_name"))
+    )
+
+
+def _subtask2_row_has_high_quality_pairwise_comparison(row: dict[str, Any]) -> bool:
+    subgroup = (row.get("subgroup") or {}).get("level")
+    return not _contains_pairwise_marker(subgroup)
+
+
+def _subtask2_filter_source_support(*, source_support: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    keep_ids = {str(row.get("row_id") or "") for row in rows}
+    row_support = {
+        row_id: support
+        for row_id, support in (source_support.get("row_support") or {}).items()
+        if row_id in keep_ids
+    }
+    status_counts: Counter[str] = Counter()
+    for support in row_support.values():
+        status_counts[str(support.get("status") or "unknown")] += 1
+    return {
+        **source_support,
+        "row_support": row_support,
+        "status_counts": dict(sorted(status_counts.items())),
+    }
+
+
+def _contains_pairwise_marker(value: Any) -> bool:
+    text = str(value or "")
+    return bool(re.search(r"\b(vs\.?|versus|compared\s+with|compared\s+to)\b", text, flags=re.IGNORECASE))
+
+
+def _article_text_by_id(*, article_bundle: dict[str, Any]) -> dict[str, str]:
+    texts: dict[str, str] = {}
+    for source_path in (article_bundle.get("source_paths") or {}).values():
+        payload = json.loads(Path(source_path).read_text(encoding="utf-8"))
+        article_id = str(payload.get("article_id") or "")
+        if not article_id:
+            continue
+        texts[article_id] = _article_search_text(payload)
+    return texts
+
+
+def _article_table_count_by_id(*, article_bundle: dict[str, Any]) -> dict[str, int]:
+    table_counts: dict[str, int] = {}
+    for source_path in (article_bundle.get("source_paths") or {}).values():
+        payload = json.loads(Path(source_path).read_text(encoding="utf-8"))
+        article_id = str(payload.get("article_id") or "")
+        if not article_id:
+            continue
+        table_counts[article_id] = len(payload.get("tables") or [])
+    return table_counts
+
+
+def _article_search_text(article: dict[str, Any]) -> str:
+    parts: list[str] = []
+    metadata = article.get("metadata") or {}
+    parts.extend(str(metadata.get(key) or "") for key in ("title", "abstract", "doi", "pmid", "pmc_id"))
+    xml_content = article.get("xml_content")
+    if isinstance(xml_content, str):
+        parts.append(xml_content)
+    elif isinstance(xml_content, dict):
+        for section in xml_content.get("sections") or []:
+            if isinstance(section, dict):
+                parts.append(str(section.get("title") or ""))
+                parts.append(str(section.get("text") or ""))
+    for table in article.get("tables") or []:
+        if not isinstance(table, dict):
+            continue
+        parts.append(str(table.get("caption") or ""))
+        raw_xml = table.get("raw_xml")
+        if isinstance(raw_xml, str):
+            parts.append(raw_xml)
+        for row in table.get("rows") or []:
+            parts.append(json.dumps(row, ensure_ascii=False))
+    return _normalize_search_text("\n".join(parts))
+
+
+def _subtask2_source_support(
+    *,
+    rows: list[dict[str, Any]],
+    article_ids_by_study_id: dict[str, list[str]],
+    article_text_by_id: dict[str, str],
+    article_table_count_by_id: dict[str, int],
+    enabled: bool,
+) -> dict[str, Any]:
+    if not enabled:
+        return {"filter": "none", "row_support": {}, "status_counts": {}}
+    row_support = {}
+    status_counts: Counter[str] = Counter()
+    for row in rows:
+        study_id = str(row.get("study_id") or "")
+        article_ids = list(article_ids_by_study_id.get(study_id) or [])
+        article_text = "\n".join(article_text_by_id.get(article_id, "") for article_id in article_ids)
+        has_tables = any(int(article_table_count_by_id.get(article_id) or 0) > 0 for article_id in article_ids)
+        values = _subtask2_required_gold_values(row)
+        matched = [value for value in values if _numeric_value_present(value, article_text)]
+        missing = [value for value in values if value not in matched]
+        status = "supported_by_current_inputs" if values and not missing else "missing_key_gold_values"
+        if not article_text:
+            status = "missing_article_text"
+        elif not has_tables:
+            status = "missing_article_tables"
+        status_counts[status] += 1
+        row_support[str(row.get("row_id") or "")] = {
+            "study_id": study_id,
+            "article_ids": article_ids,
+            "status": status,
+            "include_in_primary_eval": status == "supported_by_current_inputs",
+            "required_gold_values": values,
+            "matched_gold_values": matched,
+            "missing_key_gold_values": missing,
+            "has_article_tables": has_tables,
+        }
+    return {
+        "filter": "key_gold_direct",
+        "row_support": row_support,
+        "status_counts": dict(sorted(status_counts.items())),
+    }
+
+
+def _apply_subtask2_review_labels(*, rows: list[dict[str, Any]], audit_registry: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    labeled_rows: list[dict[str, Any]] = []
+    for row in rows:
+        review_meta = audit_registry.get(str(row.get("row_id") or ""), {})
+        labeled_rows.append(
+            {
+                **row,
+                **review_meta,
+            }
+        )
+    return labeled_rows
+
+
+def _subtask2_candidate_set_review_label(*, study_rows: list[dict[str, Any]], audit_registry: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    labels: list[str] = []
+    notes: list[str] = []
+    for row in study_rows:
+        review_meta = audit_registry.get(str(row.get("row_id") or ""), {})
+        label = review_meta.get("review_label")
+        note = review_meta.get("audit_note")
+        if label:
+            labels.append(str(label))
+        if note:
+            notes.append(str(note))
+    payload: dict[str, Any] = {}
+    if labels:
+        payload["review_label"] = labels[0] if len(set(labels)) == 1 else "mixed_review_labels"
+    if notes:
+        payload["audit_note"] = " | ".join(dict.fromkeys(notes))
+    return payload
+
+
+def _load_subtask2_audit_registry() -> dict[str, dict[str, Any]]:
+    if not SUBTASK2_AUDIT_REGISTRY.exists():
+        return {}
+    registry: dict[str, dict[str, Any]] = {}
+    for row in read_jsonl(SUBTASK2_AUDIT_REGISTRY):
+        row_id = str(row.get("row_id") or "")
+        review_label = row.get("review_label")
+        audit_note = row.get("audit_note")
+        if not row_id or not review_label:
+            continue
+        registry[row_id] = {
+            "review_label": str(review_label),
+            **({"audit_note": str(audit_note)} if audit_note else {}),
+        }
+    return registry
+
+
+def _subtask2_required_gold_values(row: dict[str, Any]) -> list[str]:
+    data = row.get("result_data") or {}
+    values = []
+    for key in sorted(data):
+        value = data.get(key)
+        if value is None:
+            continue
+        values.append(_normalize_numeric_for_search(value))
+    return list(dict.fromkeys(value for value in values if value))
+
+
+def _numeric_value_present(value: str, text: str) -> bool:
+    if not value or not text:
+        return False
+    return bool(re.search(rf"(?<![\d.]){re.escape(value)}(?![\d.])", text))
+
+
+def _normalize_search_text(text: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = text.replace("−", "-").replace("–", "-").replace("—", "-")
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def _normalize_numeric_for_search(value: Any) -> str:
+    number = float(value)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.6f}".rstrip("0").rstrip(".")
+
+
+def _build_subtask3_records(
+    records: list[dict[str, Any]],
+    *,
+    article_bundle: dict[str, Any],
+    subtask2_key_filter: bool = False,
+    **_: Any,
+) -> list[dict[str, Any]]:
     subtask_records: list[dict[str, Any]] = []
     for record in records:
         gold = record["gold"]
@@ -1520,7 +2170,13 @@ def _build_subtask3_records(records: list[dict[str, Any]], *, article_bundle: di
     return subtask_records
 
 
-def _build_subtask4_records(records: list[dict[str, Any]], *, article_bundle: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_subtask4_records(
+    records: list[dict[str, Any]],
+    *,
+    article_bundle: dict[str, Any],
+    subtask2_key_filter: bool = False,
+    **_: Any,
+) -> list[dict[str, Any]]:
     subtask_records: list[dict[str, Any]] = []
     for record in records:
         gold = record["gold"]
@@ -1555,7 +2211,13 @@ def _build_subtask4_records(records: list[dict[str, Any]], *, article_bundle: di
     return subtask_records
 
 
-def _build_subtask5_records(records: list[dict[str, Any]], *, article_bundle: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_subtask5_records(
+    records: list[dict[str, Any]],
+    *,
+    article_bundle: dict[str, Any],
+    subtask2_key_filter: bool = False,
+    **_: Any,
+) -> list[dict[str, Any]]:
     subtask_records: list[dict[str, Any]] = []
     for record in records:
         gold = record["gold"]

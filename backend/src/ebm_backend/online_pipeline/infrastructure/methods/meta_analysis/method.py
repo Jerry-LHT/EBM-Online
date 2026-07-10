@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ebm_backend.online_pipeline.domain.article import CleanedArticle
@@ -12,12 +13,15 @@ from ebm_backend.online_pipeline.domain.meta_analysis import (
     AnalysisSetting,
     AnalysisSubgroup,
     AnalysisTimepoint,
+    CandidateStudyResult,
     ContinuousResultData,
     DichotomousResultData,
     HeterogeneitySummary,
     MetaAnalysisResultPackage,
     OverallEstimate,
     PredictionInterval,
+    StudyResultDerivation,
+    StudyResultSetting,
     StudyResultComparison,
     StudyResultOutcome,
     StudyResultRow,
@@ -57,9 +61,17 @@ class Method(MetaAnalysisMethod):
             included_studies=included_studies,
         )
         article_payloads = [_article_payload(article) for article in articles]
+        instance = {
+            **instance,
+            "study_result_targets": _study_result_targets(
+                instance=instance,
+                article_payloads=article_payloads,
+            ),
+        }
         study_result_rows = self.study_results_method.run(instance=instance, articles=article_payloads)
-        analysis_methods = self.analysis_methods_method.run(instance={**instance, "study_result_rows": study_result_rows})
-        instance = {**instance, "study_result_rows": study_result_rows, "analysis_methods": analysis_methods}
+        estimable_rows = flatten_estimable_candidate_rows(study_result_rows)
+        analysis_methods = self.analysis_methods_method.run(instance={**instance, "study_result_rows": estimable_rows})
+        instance = {**instance, "study_result_rows": estimable_rows, "analysis_methods": analysis_methods}
         subgroup_payload = self.subgroup_analysis_method.run(instances=[instance])
         subgroup_results = subgroup_payload.get(str(instance["instance_id"]), {"subgroup_estimates": [], "subgroup_difference_tests": []})
         overall_estimates = self.overall_estimates_method.run(instance=instance)
@@ -67,7 +79,7 @@ class Method(MetaAnalysisMethod):
         return MetaAnalysisResultPackage(
             review_id=review_id,
             analysis_settings=[setting],
-            study_result_rows=[_study_result_row_from_dict(row) for row in study_result_rows],
+            study_result_rows=[_study_result_row_from_dict(row) for row in estimable_rows],
             subgroup_estimates=[_subgroup_estimate_from_dict(row) for row in subgroup_results.get("subgroup_estimates") or []],
             subgroup_difference_tests=[
                 _subgroup_difference_test_from_dict(row)
@@ -129,6 +141,27 @@ def _table_payload(table) -> dict[str, Any]:
     return {"table_id": table.table_id, "caption": table.caption, "rows": rows}
 
 
+def _study_result_targets(*, instance: dict[str, Any], article_payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    setting = instance.get("analysis_setting") or {}
+    setting_id = str(setting.get("setting_id") or instance.get("instance_id") or "setting")
+    article_by_study = {str(article.get("study_id") or ""): article for article in article_payloads}
+    targets = []
+    for study_id in instance.get("included_studies") or []:
+        study_id_text = str(study_id)
+        article = article_by_study.get(study_id_text)
+        if not article:
+            continue
+        targets.append(
+            {
+                "target_id": f"target::{setting_id}::{_slug(study_id_text)}",
+                "setting_id": setting_id,
+                "study_id": study_id_text,
+                "article_id": article.get("article_id"),
+            }
+        )
+    return targets
+
+
 def _analysis_setting_from_dict(row: dict[str, Any]) -> AnalysisSetting:
     comparison = row.get("comparison") or {}
     outcome = row.get("outcome") or {}
@@ -158,8 +191,13 @@ def _study_result_row_from_dict(row: dict[str, Any]) -> StudyResultRow:
     outcome = row.get("outcome") or {}
     subgroup = row.get("subgroup") or {}
     data_type = _data_type(row.get("data_type"))
+    result_items_raw = row.get("result_items") if isinstance(row.get("result_items"), list) else None
+    candidate_results_raw = row.get("candidate_results") if isinstance(row.get("candidate_results"), list) else None
+    result_items = _candidate_results(result_items_raw or candidate_results_raw or [], default_data_type=data_type)
+    candidate_results = _candidate_results(candidate_results_raw or result_items_raw or [], default_data_type=data_type)
     return StudyResultRow(
         row_id=str(row.get("row_id") or ""),
+        extraction_task_id=_optional_text(row.get("extraction_task_id")),
         setting_id=str(row.get("setting_id") or ""),
         study_id=str(row.get("study_id") or ""),
         study_year=_optional_text(row.get("study_year")),
@@ -177,7 +215,148 @@ def _study_result_row_from_dict(row: dict[str, Any]) -> StudyResultRow:
             factor=_optional_text(subgroup.get("factor")),
             level=_optional_text(subgroup.get("level")),
         ),
-        result_data=_result_data(row.get("result_data") or {}, data_type=data_type),
+        source_spans=_source_spans(row.get("source_spans") or row.get("source")),
+        result_items=result_items,
+        candidate_results=candidate_results,
+        study_result_note=_optional_text(row.get("study_result_note")),
+        extraction_status_reason=_optional_text(row.get("extraction_status_reason")),
+        notes=str(row.get("notes") or ""),
+    )
+
+
+def _candidate_results(rows: list[Any], *, default_data_type: DataType) -> list[CandidateStudyResult]:
+    candidates = []
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        data_type = _data_type(row.get("data_type") or default_data_type)
+        result_data = row.get("result_data") if isinstance(row.get("result_data"), dict) else None
+        setting = row.get("study_result_setting") if isinstance(row.get("study_result_setting"), dict) else {}
+        derivation = row.get("derivation") if isinstance(row.get("derivation"), dict) else None
+        candidates.append(
+            CandidateStudyResult(
+                candidate_id=str(row.get("candidate_id") or f"candidate::{index}"),
+                match_status=str(row.get("match_status") or "candidate"),
+                study_result_setting=StudyResultSetting(
+                    row_label=_optional_text(setting.get("row_label")),
+                    outcome_label=_optional_text(setting.get("outcome_label")),
+                    outcome_measure=_optional_text(setting.get("outcome_measure")),
+                    timepoint=_optional_text(setting.get("timepoint")),
+                    statistic_type=_optional_text(setting.get("statistic_type")),
+                    population_or_subgroup=_optional_text(setting.get("population_or_subgroup")),
+                    experimental_arm_label=_optional_text(setting.get("experimental_arm_label")),
+                    control_arm_label=_optional_text(setting.get("control_arm_label")),
+                    table_local_notes=_optional_text(setting.get("table_local_notes")),
+                ),
+                data_type=data_type,
+                result_data=_result_data(result_data, data_type=data_type) if result_data is not None else None,
+                include_in_estimate=_optional_bool(row.get("include_in_estimate")),
+                analysis_disposition=_optional_text(row.get("analysis_disposition")),
+                resolution_reason=_optional_text(row.get("resolution_reason")),
+                derivation=_derivation(derivation),
+                source_spans=_source_spans(row.get("source_spans") or row.get("source")),
+                confidence=_optional_text(row.get("confidence")),
+                study_local_note=_optional_text(row.get("study_local_note")),
+                study_local_result=row.get("study_local_result") if isinstance(row.get("study_local_result"), dict) else {},
+                setting_alignment=row.get("setting_alignment") if isinstance(row.get("setting_alignment"), dict) else {},
+                numeric_extraction=row.get("numeric_extraction") if isinstance(row.get("numeric_extraction"), dict) else {},
+                note=_optional_text(row.get("note")) or _optional_text(row.get("reason")),
+            )
+        )
+    return candidates
+
+
+def flatten_estimable_candidate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    flattened: list[dict[str, Any]] = []
+    for row in rows:
+        candidates = [
+            candidate
+            for candidate in ((row.get("result_items") if isinstance(row.get("result_items"), list) else None) or row.get("candidate_results") or [])
+            if isinstance(candidate, dict)
+        ]
+        estimable = [
+            candidate
+            for candidate in candidates
+            if (
+                str(candidate.get("analysis_disposition") or "") == "ready_for_estimate"
+                or (candidate.get("include_in_estimate") is True and not candidate.get("analysis_disposition"))
+            )
+            and isinstance(candidate.get("result_data"), dict)
+        ]
+        if not estimable:
+            continue
+        for index, candidate in enumerate(estimable):
+            flattened.append(_row_from_candidate(row=row, candidate=candidate, index=index))
+    return flattened
+
+
+def _row_from_candidate(*, row: dict[str, Any], candidate: dict[str, Any], index: int) -> dict[str, Any]:
+    setting = candidate.get("study_result_setting") if isinstance(candidate.get("study_result_setting"), dict) else {}
+    comparison = row.get("comparison") if isinstance(row.get("comparison"), dict) else {}
+    experimental = setting.get("experimental_arm_label") or comparison.get("experimental_arm")
+    control = setting.get("control_arm_label") or comparison.get("control_arm")
+    outcome = row.get("outcome") if isinstance(row.get("outcome"), dict) else {}
+    row_id = f"{row.get('row_id') or 'row'}::candidate::{index}"
+    return {
+        **row,
+        "row_id": row_id,
+        "extraction_status": "extracted",
+        "comparison": {
+            **comparison,
+            "experimental_arm": experimental,
+            "control_arm": control,
+        },
+        "outcome": {
+            **outcome,
+            "label": setting.get("outcome_label") or outcome.get("label"),
+            "timepoint": setting.get("timepoint") or outcome.get("timepoint"),
+        },
+        "source": candidate.get("source") or row.get("source") or {},
+        "result_items": [candidate],
+        "candidate_results": [candidate],
+    }
+
+
+def _derivation(value: dict[str, Any] | None) -> StudyResultDerivation | None:
+    if not value:
+        return None
+    computed = value.get("computed_fields") if isinstance(value.get("computed_fields"), list) else []
+    inputs = value.get("input_values") if isinstance(value.get("input_values"), dict) else {}
+    return StudyResultDerivation(
+        method=str(value.get("method") or "direct"),
+        computed_fields=[str(item) for item in computed],
+        input_values=inputs,
+        formula=_optional_text(value.get("formula")),
+        notes=_optional_text(value.get("notes")),
+    )
+
+
+def _source_spans(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return [
+            _source_span(item)
+            for item in value
+            if isinstance(item, dict)
+        ]
+    if isinstance(value, dict):
+        span = _source_span(value)
+        return [span] if span is not None else []
+    return []
+
+
+def _source_span(value: dict[str, Any]):
+    from ebm_backend.online_pipeline.domain.common import EvidenceSourceSpan
+
+    source_id = _optional_text(value.get("source_id")) or _optional_text(value.get("article_id")) or _optional_text(value.get("candidate_id")) or ""
+    text = _optional_text(value.get("text")) or _optional_text(value.get("evidence")) or ""
+    if not source_id and not text:
+        return None
+    return EvidenceSourceSpan(
+        source_id=source_id,
+        text=text,
+        section=_optional_text(value.get("section")),
+        page=_optional_text(value.get("page")),
+        table_id=_optional_text(value.get("table_id")),
     )
 
 
@@ -296,6 +475,24 @@ def _optional_text(value: Any) -> str | None:
         return None
     text = str(value)
     return text or None
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes"}:
+        return True
+    if text in {"false", "0", "no"}:
+        return False
+    return None
+
+
+def _slug(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9]+", "-", value).strip("-").lower()
+    return cleaned or "study"
 
 
 def build_method(method_name: str = "method_test") -> Method:
