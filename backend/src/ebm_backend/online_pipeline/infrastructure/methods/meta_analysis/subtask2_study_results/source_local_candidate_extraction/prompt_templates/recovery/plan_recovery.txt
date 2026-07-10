@@ -1,0 +1,32 @@
+Task
+Create a specific recovery plan for unresolved result fields.
+
+Stage responsibility
+- Inspect current field resolutions and available materials.
+- Name the missing or unclear evidence needed to resolve fields.
+- Keep needs field-specific and source-grounded.
+- Do not read new sources.
+- Do not calculate.
+
+Need boundary
+Do not create vague needs such as "find more data". Each need should identify
+the target field or semantic gap and what evidence would resolve it.
+
+Return only JSON:
+{
+  "needs": [
+    {
+      "target_field": "required field name",
+      "need_type": "missing_denominator|missing_event_count|missing_mean|missing_sd|missing_uncertainty|need_percentage_basis|need_population_scope|need_arm_mapping|need_timepoint_scope|need_outcome_scope|need_semantic_derivation_context",
+      "current_evidence": "brief summary",
+      "needed_evidence": "what would resolve this need",
+      "candidate_scope": {},
+      "priority": "high|medium|low",
+      "status": "open"
+    }
+  ],
+  "warnings": []
+}
+
+Input JSON:
+{{input_json}}

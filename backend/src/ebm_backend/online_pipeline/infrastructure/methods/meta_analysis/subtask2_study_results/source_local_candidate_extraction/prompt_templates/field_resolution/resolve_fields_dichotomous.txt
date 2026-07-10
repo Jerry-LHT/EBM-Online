@@ -1,0 +1,163 @@
+Task
+Resolve required dichotomous result fields for one article-local candidate by
+selecting compatible numeric materials and calculator operations.
+
+Stage responsibility
+- Use `candidate_setting` as the target source-local result setting.
+- For each required field, decide how the field can be filled from the provided
+  materials.
+- Bind material ids to direct fields or deterministic calculators.
+- Do not search new sources.
+- Do not decide whether this candidate should exist.
+- Do not calculate final numeric answers yourself.
+
+Important boundary
+Selecting a calculator and binding its material arguments is not arithmetic.
+When compatible materials can feed a supported calculator, return a calculation
+operation. The deterministic tool will perform the arithmetic and validation.
+
+If the provided materials are compatible with the candidate setting and satisfy
+the input requirements of a supported calculator, choose
+`supported_calculation`. Do not mark the field as `unresolved` merely because
+the final value is not directly printed in the source. In that case, bind the
+required material ids in `arguments`; the deterministic tool will calculate and
+validate the final value.
+
+Input meaning
+- `candidate_setting` is the source-local result setting currently being
+  completed.
+- `materials` are source-grounded numeric atoms already extracted for this
+  candidate.
+- `family_summaries` summarize how materials cluster within the local result
+  structure.
+- `semantic_clues` may help interpret arm, event/category, timepoint,
+  population, denominator basis, and sample frame.
+- `field_contracts` define which value types may directly fill or support each
+  required field.
+
+Compatibility boundary
+A material or material combination can be used only when it is compatible with
+the current candidate setting. Check the source meaning, not just the number:
+- same event/category or clearly equivalent event definition;
+- same arm;
+- same timepoint or source-defined follow-up window;
+- same population/subgroup;
+- compatible denominator basis and sample frame;
+- same unit of analysis.
+
+Do not use materials from a different sibling setting as the primary path. If a
+material is only contextual, broad, or from a different event/category, keep it
+out of the selected operation unless it is explicitly a compatible supporting
+input.
+
+Field meanings
+- `*_events` fields require event counts for the candidate arm and event.
+- `*_total` fields require the denominator or arm total for the candidate arm
+  and denominator/sample frame.
+- A percentage is not an event count. It can support calculation only with a
+  compatible total.
+- A broad randomized/analyzed total is not automatically compatible with a
+  narrower event-specific denominator unless the source supports that basis.
+
+Operation choices
+- `direct_fill`: one compatible material directly supplies the field.
+- `supported_calculation`: compatible materials can feed one supported
+  deterministic calculator listed below.
+- `generic_calculation`: compatible materials and an explicit high-confidence
+  formula can feed the generic expression calculator, and no supported
+  calculator covers the same operation.
+- `needs_more_material`: the field may be recoverable, but the required
+  compatible material or companion material is missing.
+- `unresolved`: available evidence is insufficient, unclear, or incompatible.
+- `not_applicable`: this field should not be extracted for this candidate.
+
+Supported calculators
+- `derive_events_from_percent_total`
+  - target: `*_events`
+  - arguments: `percent`, `total`.
+- `derive_total_from_events_percent`
+  - target: `*_total`
+  - arguments: `events`, `percent`.
+- `derive_events_from_total_non_events`
+  - target: `*_events`
+  - arguments: `total`, `non_events`.
+- `derive_total_from_events_non_events`
+  - target: `*_total`
+  - arguments: `events`, `non_events`.
+
+Generic calculation boundary
+Use `generic_calculation` only when all of these are true:
+- direct fill and supported calculators do not apply;
+- the formula is explicit from the source wording or a standard arithmetic
+  transformation of the provided materials;
+- every variable maps to a material id;
+- all selected materials are compatible with the candidate setting;
+- assumptions are source-explicit and low risk;
+- confidence is high.
+
+Do not use generic calculation when event definition, arm mapping, denominator
+basis, sample frame, timepoint, or variable meaning is unclear.
+
+For generic calculation, provide one expression using variable names and map
+each variable to a material id. The tool will evaluate the expression.
+
+Return only JSON:
+{
+  "resolution_status": "complete|partial|ambiguous|unresolved",
+  "fields": {
+    "experimental_events": {
+      "operation": "direct_fill|supported_calculation|generic_calculation|needs_more_material|unresolved|not_applicable",
+      "target_field": "experimental_events",
+      "direct_material_id": null,
+      "calculator": null,
+      "arguments": {},
+      "generic_expression": null,
+      "alternative_paths": [
+        {
+          "operation": "direct_fill|supported_calculation|generic_calculation|needs_more_material|unresolved|not_applicable",
+          "material_ids": [],
+          "reason_not_selected": "brief source-grounded reason"
+        }
+      ],
+      "rationale": "brief source-grounded reason",
+      "confidence": "high|medium|low"
+    },
+    "experimental_total": {
+      "operation": "direct_fill|supported_calculation|generic_calculation|needs_more_material|unresolved|not_applicable",
+      "target_field": "experimental_total",
+      "direct_material_id": null,
+      "calculator": null,
+      "arguments": {},
+      "generic_expression": null,
+      "alternative_paths": [],
+      "rationale": "brief source-grounded reason",
+      "confidence": "high|medium|low"
+    },
+    "control_events": {
+      "operation": "direct_fill|supported_calculation|generic_calculation|needs_more_material|unresolved|not_applicable",
+      "target_field": "control_events",
+      "direct_material_id": null,
+      "calculator": null,
+      "arguments": {},
+      "generic_expression": null,
+      "alternative_paths": [],
+      "rationale": "brief source-grounded reason",
+      "confidence": "high|medium|low"
+    },
+    "control_total": {
+      "operation": "direct_fill|supported_calculation|generic_calculation|needs_more_material|unresolved|not_applicable",
+      "target_field": "control_total",
+      "direct_material_id": null,
+      "calculator": null,
+      "arguments": {},
+      "generic_expression": null,
+      "alternative_paths": [],
+      "rationale": "brief source-grounded reason",
+      "confidence": "high|medium|low"
+    }
+  },
+  "warnings": []
+}
+
+Input JSON:
+{{input_json}}

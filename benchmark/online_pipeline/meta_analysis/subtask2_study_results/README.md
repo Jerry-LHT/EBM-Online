@@ -1,81 +1,115 @@
-# Meta Analysis Subtask 2: Study Result Rows
+# Meta-analysis Subtask 2: Study Result Extraction
 
-本 subtask 评估 study-level result data extraction。评估单位是一个 `AnalysisSetting` 对应的 extraction instance。
+This benchmark converts a dataset instance into the backend workflow contract,
+calls the Subtask 2 method, and evaluates `StudyResultRow.result_items[]`.
+Backend runtime code does not depend on benchmark datasets or evaluation code.
 
-## 1. 任务边界
+## Current Method
 
-method 需要根据 `analysis_setting`、eligible studies、linked cleaned articles 和 source context，抽取该 setting 下可用于 meta-analysis 的 `study_result_rows`。
-
-该 subtask 不负责选择 analysis model，不负责计算 subgroup 或 overall pooled estimates。
-
-## 2. 当前数据分布
-
-<table>
-  <thead>
-    <tr>
-      <th>Dataset</th>
-      <th>All</th>
-      <th>Smoke</th>
-      <th>Dev</th>
-      <th>Test</th>
-      <th>Schema</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>cochrane_meta_v1</code></td>
-      <td>2504</td>
-      <td>5</td>
-      <td>1246</td>
-      <td>1258</td>
-      <td><a href="datasets/cochrane_meta_v1/schema.md">schema.md</a></td>
-    </tr>
-  </tbody>
-</table>
-
-## 3. 数据契约
-
-<table>
-  <thead>
-    <tr>
-      <th>Item</th>
-      <th>Fields</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>输入</td>
-      <td><code>analysis_setting</code>, <code>included_studies</code>, <code>article_ids</code>, <code>article_study_links</code>, <code>article_coverage</code>, <code>source_context</code>, <code>source_refs</code></td>
-    </tr>
-    <tr>
-      <td>共享文章层</td>
-      <td><code>shared/article_index.jsonl</code>, <code>shared/articles/*.json</code></td>
-    </tr>
-    <tr>
-      <td>Gold 输出</td>
-      <td><code>study_result_rows</code></td>
-    </tr>
-    <tr>
-      <td>预测目标</td>
-      <td>与 gold 可 join 的 study-level result rows，包括 study、data type、comparison/outcome/subgroup 和 result data。</td>
-    </tr>
-    <tr>
-      <td>主要指标</td>
-      <td><code>subtask2_exact_row_rate</code>, <code>subtask2_numeric_close_rate</code>, <code>field_completion_rate</code></td>
-    </tr>
-  </tbody>
-</table>
-
-## 4. 运行
-
-```bash
-PYTHONPATH=backend/src python benchmark/online_pipeline/meta_analysis/subtask2_study_results/evaluation/runner.py \
-  --method method_test \
-  --run-id smoke-subtask2
-```
-
-结果写入：
+The single public method is:
 
 ```text
-benchmark/online_pipeline/meta_analysis/subtask2_study_results/runs/<run_id>/
+method_source_local_candidate_extraction
 ```
+
+Its implementation is under:
+
+```text
+backend/src/ebm_backend/online_pipeline/infrastructure/methods/meta_analysis/
+  subtask2_study_results/source_local_candidate_extraction/
+```
+
+Historical methods and experiments are local-only under `archive/`. They are
+not runtime dependencies and are excluded from version control.
+
+## Contract
+
+The benchmark supplies the backend method with:
+
+- the review analysis setting;
+- one study/article extraction task;
+- optional non-numeric extraction hints;
+- linked article text and raw table XML.
+
+The method returns `StudyResultRow[]`. Each row contains one `result_items[]`
+list. A result item preserves an article-local candidate setting and contains
+all currently supported numeric fields in `result_data`. A broad review setting
+may legitimately produce multiple `possible` result items.
+
+The method must not read benchmark gold, benchmark row indexes, or evaluation
+artifacts.
+
+## Datasets
+
+Primary development dataset:
+
+```text
+datasets/cochrane_meta_v2-key-filter
+```
+
+Committed regression subsets:
+
+- `datasets/cochrane_meta_v2-key-filter-dev4/splits/dev4`: four representative
+  prompt and pipeline regression cases.
+- `datasets/cochrane_meta_v2-key-filter-test78/splits/test78`: 78 audited,
+  article-supported evaluation instances containing 83 gold study rows.
+
+The test78 directory includes its curated source-support audit and audit-clean
+manifest; historical predictions used during review remain in local archive.
+
+Both subsets use a relative `shared` link to the primary key-filter dataset, so
+they remain portable across repository checkouts.
+
+Temporary subsets, run outputs, prompts, traces, and rerun artifacts belong in
+this module's ignored `archive/` directory.
+
+## Running
+
+Run the fast regression split:
+
+```bash
+PYTHONPATH=backend/src:. python benchmark/online_pipeline/meta_analysis/subtask2_study_results/evaluation/runner.py \
+  --dataset benchmark/online_pipeline/meta_analysis/subtask2_study_results/datasets/cochrane_meta_v2-key-filter-dev4/splits/dev4 \
+  --method method_source_local_candidate_extraction \
+  --run-id source_local_dev4 \
+  --hint-policy full
+```
+
+Run the audited test split with timeout/resume orchestration:
+
+```bash
+PYTHONPATH=backend/src:. python benchmark/online_pipeline/meta_analysis/subtask2_study_results/evaluation/run_instances_with_timeout.py \
+  --dataset benchmark/online_pipeline/meta_analysis/subtask2_study_results/datasets/cochrane_meta_v2-key-filter-test78/splits/test78 \
+  --method method_source_local_candidate_extraction \
+  --run-id source_local_test78 \
+  --timeout-seconds 1800 \
+  --workers 2 \
+  --hint-policy full \
+  --progress \
+  --resume
+```
+
+## Primary Metrics
+
+The primary metrics evaluate one predicted result item at a time. They never
+combine fields from different candidates:
+
+- `candidate_item_complete_recall`: proportion of gold items for which one
+  predicted item contains every required numeric field.
+- `candidate_item_any_value_recall`: proportion of gold items for which one
+  predicted item matches at least one required numeric field.
+- `candidate_item_field_coverage`: mean fraction of required fields matched by
+  the single best predicted item for each gold item.
+
+Per-field, denominator-only, value-only, candidate-count, status, and audit
+subset metrics are diagnostics. In particular, legacy per-field recall may
+aggregate observations across candidates and must not be reported as item-level
+completion.
+
+## Maintained Utilities
+
+- `datasets/builders/build_supported_test_subset.py`
+- `datasets/builders/build_audited_test_subset.py`
+- `evaluation/metrics.py`
+- `evaluation/runner.py`
+- `evaluation/run_instances_with_timeout.py`

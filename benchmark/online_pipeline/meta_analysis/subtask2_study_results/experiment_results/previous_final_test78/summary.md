@@ -1,0 +1,39 @@
+# meta_analysis subtask2 benchmark (audited gold)
+
+- instance_count: 78
+- comparison_count: 83
+- evaluable_target_count: 83
+- duplicate_gold_target_count: 0
+- target_completion_rate: 1.0000
+- target_extracted_rate: 0.0241
+- target_numeric_close_rate: 0.3133
+- target_value_only_close_rate: 0.3614
+- field_close_rate: 0.4919
+- field_close_rates: {'control_events': 0.3968253968253968, 'control_mean': 0.35, 'control_sd': 0.4, 'control_total': 0.6024096385542169, 'experimental_events': 0.4603174603174603, 'experimental_mean': 0.35, 'experimental_sd': 0.4, 'experimental_total': 0.5903614457831325}
+- value_only_field_close_rate: 0.4078
+- value_only_field_close_rates: {'control_events': 0.3968253968253968, 'control_mean': 0.35, 'control_sd': 0.4, 'experimental_events': 0.4603174603174603, 'experimental_mean': 0.35, 'experimental_sd': 0.4}
+- denominator_field_close_rate: 0.5964
+- denominator_field_close_rates: {'control_total': 0.6024096385542169, 'experimental_total': 0.5903614457831325}
+- candidate_numeric_recall_rate: 0.4337
+- candidate_value_only_recall_rate: 0.5301
+- candidate_field_recall_rate: 0.6505
+- candidate_field_recall_rates: {'control_events': 0.5238095238095238, 'control_mean': 0.7, 'control_sd': 0.65, 'control_total': 0.7108433734939759, 'experimental_events': 0.5714285714285714, 'experimental_mean': 0.7, 'experimental_sd': 0.65, 'experimental_total': 0.7228915662650602}
+- candidate_value_only_field_recall_rate: 0.5971
+- candidate_value_only_field_recall_rates: {'control_events': 0.5238095238095238, 'control_mean': 0.7, 'control_sd': 0.65, 'experimental_events': 0.5714285714285714, 'experimental_mean': 0.7, 'experimental_sd': 0.65}
+- candidate_denominator_field_recall_rate: 0.7169
+- candidate_denominator_field_recall_rates: {'control_total': 0.7108433734939759, 'experimental_total': 0.7228915662650602}
+- ambiguous_with_gold_candidate_rate: 0.5333
+- avg_candidate_count: 3.5542
+- review_label_counts: {}
+- audit_material_problem_target_count: 0
+- audit_gold_source_mismatch_target_count: 0
+- audit_included_target_count: 83
+- audit_included_target_completion_rate: 1.0000
+- audit_included_target_extracted_rate: 0.0241
+- audit_included_target_numeric_close_rate: 0.3133
+- audit_included_target_value_only_close_rate: 0.3614
+- requested_instance_count: 78
+- completed_instance_count: 78
+- failed_instance_count: 0
+- source_run_id: targeted_fix2_test100_fast
+- audit_cleaned_gold: True

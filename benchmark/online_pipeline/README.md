@@ -53,14 +53,14 @@ workflow 模块契约见 [`docs/workflow_v3.md`](../../docs/workflow_v3.md)。�
       <td><code>meta_analysis</code></td>
       <td>按 subtask 接入</td>
       <td>一个 analysis setting / subtask instance</td>
-      <td><code>cochrane_meta_v1</code></td>
+      <td><code>cochrane_meta_v2</code></td>
       <td><a href="meta_analysis/README.md">meta_analysis/README.md</a></td>
     </tr>
     <tr>
       <td><code>grade</code></td>
       <td>按 domain 接入</td>
       <td>一个 SoF row + 一个 GRADE domain</td>
-      <td><code>grade_v3</code></td>
+      <td><code>grade_v4</code></td>
       <td><a href="grade/README.md">grade/README.md</a></td>
     </tr>
     <tr>
@@ -99,8 +99,8 @@ benchmark/online_pipeline/
 `meta_analysis` 和 `grade` 使用 subtask/domain 级可运行 dataset，不生成模块级 dataset root：
 
 ```text
-meta_analysis/<subtask>/datasets/cochrane_meta_v1/
-grade/<domain>/datasets/grade_v3/
+meta_analysis/<subtask>/datasets/<dataset_name>/
+grade/<domain>/datasets/grade_v4/
 ```
 
 ## 3. 使用方式
@@ -147,7 +147,7 @@ PYTHONPATH=backend/src:. python benchmark/online_pipeline/benchmark.py all \
 PYTHONPATH=backend/src:. python benchmark/online_pipeline/benchmark.py run \
   --module meta_analysis \
   --subtask subtask2_study_results \
-  --dataset-name cochrane_meta_v1 \
+  --dataset-name cochrane_meta_v2-key-filter \
   --split smoke \
   --method method_test \
   --run-id meta-subtask2-smoke \
@@ -160,12 +160,16 @@ PYTHONPATH=backend/src:. python benchmark/online_pipeline/benchmark.py run \
 PYTHONPATH=backend/src:. python benchmark/online_pipeline/benchmark.py run \
   --module grade \
   --domain risk_of_bias_downgrade \
-  --dataset-name grade_v3 \
+  --dataset-name grade_v4 \
   --split smoke \
   --method method_test \
-  --run-id grade-rob-downgrade-smoke \
+  --run-id grade-rob-downgrade-v4-smoke \
   --limit 1
 ```
+
+当前默认可复现版本是 `cochrane_meta_v2` / `cochrane_meta_v2-key-filter` 和 `grade_v4`。其中
+`grade/risk_of_bias_downgrade` 同时保留远端既有的 `grade_v3` 与当前 `grade_v4`；其余 GRADE domain 的旧
+`grade_v3` 仅保留在本地 archive。
 
 需要 LLM judge 的 evaluator 从仓库根目录的 `llm.local.json` 读取配置：
 
@@ -261,8 +265,8 @@ benchmark runner 直接调用 Python method，不调用 HTTP API。
 
 - `study_pio/datasets/cochrane_study_pio/articles/`
 - `risk_of_bias/datasets/cochrane_rob1/articles/`
-- `meta_analysis/subtask2_study_results/datasets/cochrane_meta_v1/shared/`
-- `grade/<domain>/datasets/grade_v3/shared/row_records.jsonl`
+- `meta_analysis/subtask2_study_results/datasets/cochrane_meta_v2-key-filter/shared/`
+- `grade/<domain>/datasets/grade_v4/shared/row_records.jsonl`
 
 ## 6. 运行产物
 
@@ -366,42 +370,51 @@ benchmark runner 直接调用 Python method，不调用 HTTP API。
     </tr>
     <tr>
       <td>Meta Analysis / Subtask 2</td>
-      <td><code>meta_analysis/subtask2_study_results/datasets/cochrane_meta_v1</code></td>
-      <td>2504</td>
+      <td><code>meta_analysis/subtask2_study_results/datasets/cochrane_meta_v2-key-filter</code></td>
+      <td>1041</td>
       <td>5</td>
-      <td>1246</td>
-      <td>1258</td>
-      <td><a href="meta_analysis/subtask2_study_results/datasets/cochrane_meta_v1/schema.md">schema.md</a></td>
+      <td>451</td>
+      <td>590</td>
+      <td><a href="meta_analysis/subtask2_study_results/datasets/cochrane_meta_v2-key-filter/schema.md">schema.md</a></td>
     </tr>
     <tr>
       <td>Meta Analysis / Subtask 3</td>
-      <td><code>meta_analysis/subtask3_analysis_methods/datasets/cochrane_meta_v1</code></td>
-      <td>15122</td>
+      <td><code>meta_analysis/subtask3_analysis_methods/datasets/cochrane_meta_v2</code></td>
+      <td>5308</td>
       <td>5</td>
-      <td>5083</td>
-      <td>10039</td>
-      <td><a href="meta_analysis/subtask3_analysis_methods/datasets/cochrane_meta_v1/schema.md">schema.md</a></td>
+      <td>2638</td>
+      <td>2670</td>
+      <td><a href="meta_analysis/subtask3_analysis_methods/datasets/cochrane_meta_v2/schema.md">schema.md</a></td>
     </tr>
     <tr>
       <td>Meta Analysis / Subtask 4</td>
-      <td><code>meta_analysis/subtask4_subgroup_analysis/datasets/cochrane_meta_v1</code></td>
-      <td>8096</td>
-      <td>11</td>
-      <td>2803</td>
-      <td>5293</td>
-      <td><a href="meta_analysis/subtask4_subgroup_analysis/datasets/cochrane_meta_v1/schema.md">schema.md</a></td>
+      <td><code>meta_analysis/subtask4_subgroup_analysis/datasets/cochrane_meta_v2</code></td>
+      <td>3447</td>
+      <td>63</td>
+      <td>1782</td>
+      <td>1665</td>
+      <td><a href="meta_analysis/subtask4_subgroup_analysis/datasets/cochrane_meta_v2/schema.md">schema.md</a></td>
     </tr>
     <tr>
       <td>Meta Analysis / Subtask 5</td>
-      <td><code>meta_analysis/subtask5_overall_estimates/datasets/cochrane_meta_v1</code></td>
-      <td>3818</td>
+      <td><code>meta_analysis/subtask5_overall_estimates/datasets/cochrane_meta_v2</code></td>
+      <td>1108</td>
       <td>5</td>
-      <td>1345</td>
-      <td>2473</td>
-      <td><a href="meta_analysis/subtask5_overall_estimates/datasets/cochrane_meta_v1/schema.md">schema.md</a></td>
+      <td>533</td>
+      <td>575</td>
+      <td><a href="meta_analysis/subtask5_overall_estimates/datasets/cochrane_meta_v2/schema.md">schema.md</a></td>
     </tr>
     <tr>
       <td>GRADE / 偏倚风险降级</td>
+      <td><code>grade/risk_of_bias_downgrade/datasets/grade_v4</code></td>
+      <td>510</td>
+      <td>1</td>
+      <td>253</td>
+      <td>182</td>
+      <td><a href="grade/risk_of_bias_downgrade/datasets/grade_v4/schema.md">schema.md</a></td>
+    </tr>
+    <tr>
+      <td>GRADE / 偏倚风险降级（既有基线）</td>
       <td><code>grade/risk_of_bias_downgrade/datasets/grade_v3</code></td>
       <td>569</td>
       <td>1</td>
@@ -411,30 +424,30 @@ benchmark runner 直接调用 Python method，不调用 HTTP API。
     </tr>
     <tr>
       <td>GRADE / 不一致性</td>
-      <td><code>grade/inconsistency/datasets/grade_v3</code></td>
-      <td>709</td>
+      <td><code>grade/inconsistency/datasets/grade_v4</code></td>
+      <td>632</td>
       <td>5</td>
-      <td>278</td>
-      <td>210</td>
-      <td><a href="grade/inconsistency/datasets/grade_v3/schema.md">schema.md</a></td>
+      <td>253</td>
+      <td>182</td>
+      <td><a href="grade/inconsistency/datasets/grade_v4/schema.md">schema.md</a></td>
     </tr>
     <tr>
       <td>GRADE / 间接性</td>
-      <td><code>grade/indirectness/datasets/grade_v3</code></td>
-      <td>709</td>
-      <td>3</td>
-      <td>278</td>
-      <td>210</td>
-      <td><a href="grade/indirectness/datasets/grade_v3/schema.md">schema.md</a></td>
+      <td><code>grade/indirectness/datasets/grade_v4</code></td>
+      <td>632</td>
+      <td>4</td>
+      <td>253</td>
+      <td>182</td>
+      <td><a href="grade/indirectness/datasets/grade_v4/schema.md">schema.md</a></td>
     </tr>
     <tr>
       <td>GRADE / 不精确性</td>
-      <td><code>grade/imprecision/datasets/grade_v3</code></td>
-      <td>707</td>
-      <td>1</td>
-      <td>276</td>
-      <td>210</td>
-      <td><a href="grade/imprecision/datasets/grade_v3/schema.md">schema.md</a></td>
+      <td><code>grade/imprecision/datasets/grade_v4</code></td>
+      <td>630</td>
+      <td>5</td>
+      <td>252</td>
+      <td>181</td>
+      <td><a href="grade/imprecision/datasets/grade_v4/schema.md">schema.md</a></td>
     </tr>
   </tbody>
 </table>
@@ -710,12 +723,12 @@ Study Screening 和 GRADE 的完整 `all` 文件可能包含不在可运行 dev/
     <tr>
       <td><code>raw_data/analysis_settings/grade_required_v1</code></td>
       <td>Meta Analysis, GRADE</td>
-      <td>下游 GRADE alignment 需要共享的 analysis settings</td>
+      <td>下游 GRADE alignment 需要共享的 analysis settings；只接受 v2 comparison cache/source hash 有效行</td>
     </tr>
     <tr>
       <td><code>raw_data/grade</code></td>
       <td>GRADE</td>
-      <td>legacy GRADE source rows、labels、release splits 和 alignment artifacts</td>
+      <td>legacy GRADE source rows、labels、release splits 和 alignment artifacts；普通 build 只读该冻结 snapshot，不依赖外部 sr-cleaned 分支</td>
     </tr>
   </tbody>
 </table>

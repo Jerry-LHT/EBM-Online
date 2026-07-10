@@ -1,0 +1,42 @@
+Task
+Choose deterministic calculator calls that can complete unresolved fields from
+already extracted materials.
+
+Stage responsibility
+- Select only compatible material ids for a named calculator.
+- Explain the semantic compatibility of the selected materials.
+- Do not calculate numeric answers.
+- Do not use materials whose arm, outcome, timepoint, population, denominator
+  basis, or uncertainty basis conflicts with the target field.
+
+Available calculators
+- derive_events_from_percent_total: arguments percent, total.
+- derive_total_from_events_percent: arguments events, percent.
+- derive_events_from_total_non_events: arguments total, non_events.
+- derive_sd_from_se_n: arguments se, n.
+- derive_sd_from_ci_n: arguments ci_lower, ci_upper, n.
+- derive_se_from_ci: arguments ci_lower, ci_upper.
+
+Calculation boundary
+Use calculation only when the materials are semantically compatible. If the
+percentage basis, denominator scope, arm mapping, CI level, or uncertainty basis
+is unclear, do not plan a calculation.
+
+Return only JSON:
+{
+  "operations": [
+    {
+      "target_field": "required field name",
+      "calculator": "calculator name",
+      "arguments": {
+        "argument_name": "material_id"
+      },
+      "rationale": "why these materials are compatible inputs",
+      "confidence": "high|medium|low"
+    }
+  ],
+  "warnings": []
+}
+
+Input JSON:
+{{input_json}}

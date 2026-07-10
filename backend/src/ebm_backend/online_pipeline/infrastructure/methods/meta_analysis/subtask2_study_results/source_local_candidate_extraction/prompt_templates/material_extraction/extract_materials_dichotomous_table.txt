@@ -1,0 +1,153 @@
+Task
+Read one raw table XML source and extract numeric materials for one
+article-local dichotomous result candidate.
+
+Stage responsibility
+The candidate was already proposed from article evidence. This stage only reads
+the provided table source and extracts source-expressed numeric materials for
+that candidate.
+
+Do not rediscover candidates. Do not decide final meta-analysis fields. Do not
+calculate. Do not normalize article labels. Do not treat text-only semantic
+clues as materials. A material must contain a numeric value or a numeric source
+expression.
+
+Input meaning
+- `candidate` describes the article-local result setting currently being
+  completed.
+- `field_need_context` lists downstream fields and value contracts. Use it only
+  to understand what kinds of numeric material may be useful.
+- `source` is one raw table XML source. Read it as evidence, not as a cleaned
+  table.
+
+How to read this raw table XML
+Use the candidate as the semantic scope for this source. First identify the
+table-local result area that corresponds to the candidate. Use the article's own
+row labels, event/category labels, column labels, grouped headers, arm labels,
+footnotes, and nearby table text.
+
+Before extracting a numeric cell, establish the cell's full source path. The
+path should combine the row label, column label, parent or grouped header,
+nearby label, and footnote or caption context that gives the cell its meaning.
+Use that source path to decide the cell's arm, event/category, timepoint,
+population, denominator basis, and statistic role.
+
+Do not bind a cell to an arm, event/category, or denominator basis by numeric
+order alone or by guessing from the candidate label. If the row-to-column or
+header-to-cell relationship is unclear, preserve the numeric expression but mark
+the uncertain scope fields as `unclear` and lower confidence.
+
+After locating the relevant table area, extract numeric values from that area
+and from table labels that clearly describe that same local area. Keep nearby
+areas separate when they differ by outcome, event category, severity, timepoint,
+subgroup, population, arm, denominator basis, or statistic.
+
+For each number, explain what the source says the number means. The meaning is
+more important than the table position. For example, a number may be an event
+count, an arm denominator, an overall denominator, a percentage, a non-event
+count, a rate, or unclear. If the source does not make the meaning or scope
+clear, preserve the numeric expression and mark the uncertain fields as
+`unclear`.
+
+Numeric material boundary
+Extract dichotomous numeric materials such as event counts, arm totals,
+denominators, overall totals, percentages, rates, non-event counts, and
+person-time values. A percentage is a percentage material, not an event count.
+Do not convert percentages to counts. Do not infer missing totals or events.
+
+Compound source expressions may be split when the source directly expresses
+multiple numeric materials, such as `5/244 (2.0%)`. In that case, preserve the
+source expression in `value_text` and describe each extracted value's role.
+
+Interpreting numeric notation
+Use this priority when deciding what a numeric expression means:
+1. Source-explicit meaning: table headings, footnotes, captions, nearby table
+   text, or article methods explicitly define the notation. This always wins.
+2. Source-context meaning: the same table or nearby article text makes the
+   count, denominator, percent, or rate identity clear enough.
+3. Reporting convention: if the source gives no explicit or contextual
+   definition and there is no conflicting signal, use common biomedical
+   reporting conventions with medium or low confidence and state this basis in
+   `source_meaning` or `warnings`.
+4. Unclear: if several interpretations remain plausible, mark the role as
+   `unclear`.
+
+Common dichotomous reporting conventions:
+- In an event or adverse-event row, `a/b` usually means events/total.
+- In an event or adverse-event row, `a (p%)` or `n (%)` usually means event
+  count plus percentage. The percentage is not itself an event count.
+- In baseline or characteristics tables, `n (%)` usually describes participant
+  characteristics, not endpoint events. Such values may support denominators
+  only when the arm, population, and sample frame fit the candidate.
+- `0` is a valid event count when the event/category and arm scope are clear.
+- Rates, person-time values, odds ratios, risk ratios, hazard ratios, and their
+  intervals are not arm-level events or totals.
+
+Source-grounding requirements
+- Preserve source wording for event labels, arms, populations, timepoints, and
+  denominator descriptions.
+- `source_meaning` should state what the number means in the article, not just
+  where it appears.
+- `source_ref.quote_or_anchor` should point to a row/column path, label,
+  footnote, or short XML fragment around the value.
+- Use `candidate_relevance: "direct"` only when the value belongs to the
+  candidate's local result. Use `supporting` or `contextual` when it may help
+  interpret or recover a candidate field but is not itself the local result.
+
+Return only JSON:
+{
+  "status": "complete|partial|empty|unavailable",
+  "materials": [
+    {
+      "value": null,
+      "value_text": null,
+      "value_type": "count|total|percent|non_event_count|other|unclear",
+      "statistic_role": "article-local role of this numeric value",
+      "source_meaning": "what this numeric value means in the table",
+      "candidate_relevance": "direct|supporting|contextual|unclear",
+      "family_context": {
+        "family_label": null,
+        "family_kind": "dichotomous_row|arm_summary|event_category|other|unclear",
+        "family_anchor": "source-grounded row, column, block, category, or footnote anchor",
+        "within_family_role": "category_count|arm_total|overall_total|percent|non_event_count|person_time|other|unclear"
+      },
+      "scope": {
+        "arm": null,
+        "population": null,
+        "outcome": null,
+        "timepoint": null,
+        "subgroup": null
+      },
+      "basis": {
+        "basis_type": "arm_level|pooled|subgroup|safety_population|analyzed_population|event_occurrence|person_time|unclear",
+        "sample_frame": "randomized|analyzed|follow_up_respondents|outcome_assessed|safety_population|unclear",
+        "denominator_description": null
+      },
+      "source_ref": {
+        "quote_or_anchor": "raw table label, row/column path, footnote, or short XML text around the value"
+      },
+      "difference_from_peers": {
+        "category": null,
+        "arm_or_column": null,
+        "sample_frame_or_basis": null
+      },
+      "confidence": "high|medium|low",
+      "warnings": []
+    }
+  ],
+  "material_sets": [
+    {
+      "set_label": "short source-grounded label",
+      "set_type": "event_counts|alternative_denominators|percentages|related_numeric_rows|other",
+      "distinguishing_dimension": "what separates these numeric values",
+      "item_descriptions": []
+    }
+  ],
+  "warnings": []
+}
+
+If the table contains no numeric material for this candidate, return
+`status: "empty"` with an empty `materials` list.
+
+Input JSON:
+{{input_json}}
