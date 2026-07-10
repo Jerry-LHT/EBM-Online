@@ -107,7 +107,7 @@ PYTHONPATH=backend/src:. python -m benchmark.online_pipeline.benchmark run \
 Focused config checks:
 
 ```bash
-PYTHONPATH=backend/src:. pytest tests/unit/test_settings.py -q
+PYTHONPATH=backend/src:. pytest tests/unit/infrastructure/test_llm_config.py -q
 ```
 
 Module and benchmark tests can be run selectively depending on the area being changed.
@@ -119,17 +119,29 @@ or subtask-level HTTP endpoints.
 
 Current module API status:
 
+- `q2pico` has a concrete backend implementation with a dedicated application use
+  case and interface-side adapter wiring.
+- `search-retrieval` has a concrete backend implementation with dedicated
+  application orchestration for query planning plus infrastructure methods for
+  retrieval, MeSH mapping, and free-text expansion.
+- `study-screening` has a concrete backend implementation with criteria planning,
+  criterion-wise article judgment, and binary include/exclude aggregation.
 - `study-pio-extraction`, `risk-of-bias`, `meta-analysis`, and `grade-assessment`
   have concrete method implementations in this branch.
-- `q2pico`, `search-retrieval`, and `study-screening` remain placeholder module
-  interfaces. Their routes stay visible, but the API returns `501 Not Implemented`
-  until concrete methods are added.
 
 Benchmarks do not call these HTTP routes. They load module/subtask/domain methods
 directly from Python.
 
 Shared runtime parameters such as `max_results` and module constraints are carried
 through `ebm_backend.online_pipeline.domain.module_config.ModuleRunConfig`.
+
+For the current backend layering and the implementation status of `q2pico`,
+`search-retrieval`, and `study-screening`, see:
+
+- `docs/implementation/backend-framework.md`
+- `docs/implementation/q2pico.md`
+- `docs/implementation/search-retrieval.md`
+- `docs/implementation/study-screening.md`
 
 ## Maintained Docs
 

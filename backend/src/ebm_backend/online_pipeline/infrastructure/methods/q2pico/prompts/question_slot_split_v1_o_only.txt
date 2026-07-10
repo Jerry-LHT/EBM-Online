@@ -1,0 +1,19 @@
+Task definition:
+Extract only the explicitly stated outcome endpoint(s) from the clinical question below.
+
+O definition and scope:
+- O means only an explicitly stated outcome endpoint, effect, benefit, harm, event, measurement target, or result that the question directly asks to assess or compare.
+- Return concise slot values, not full sentence rewrites.
+
+Rules:
+- Use only information inferable from the question text.
+- Do not invent evidence details that are not present in the question.
+- Do not infer likely outcomes just because an intervention is intended to help a condition.
+- Do not copy diseases, symptoms, or patient states into O when they function only as part of the population description.
+- If the question does not explicitly mention an endpoint or effect to assess, return an empty list.
+- Do not include population, intervention, or comparator terms unless they are part of the explicitly named outcome.
+- Return only JSON in this exact format: `{{"outcomes":["..."]}}`
+- If no outcome information is stated, return `{{"outcomes":[]}}`.
+
+Clinical question:
+{question_text}

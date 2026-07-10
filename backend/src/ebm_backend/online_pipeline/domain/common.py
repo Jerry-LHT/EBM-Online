@@ -60,6 +60,7 @@ class SearchFilters:
 class WorkflowConstraints:
     study_design: str = "RCT"
     evidence_scope: str | None = "online_question_guided_rct_evidence"
+    publication_year_range: str | None = None
     supported_data_types: list[DataType] = field(
         default_factory=lambda: [DataType.DICHOTOMOUS, DataType.CONTINUOUS]
     )

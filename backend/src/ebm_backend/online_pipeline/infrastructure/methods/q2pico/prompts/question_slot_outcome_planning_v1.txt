@@ -1,0 +1,26 @@
+Task definition:
+Plan a compact list of broad, patient-important core review outcomes for the clinical intervention question below.
+
+Context:
+- Clinical question: {question_text}
+- Population: {participants}
+- Intervention: {interventions}
+- Comparator: {comparators}
+- Explicitly stated endpoints from the question: {explicit_outcomes}
+
+Outcome planning scope:
+- Generate outcomes that would be reasonable to prioritize in a protocol-level intervention review.
+- Use evidence-based medicine framing: preserve any explicit endpoint from the question, and add only a small number of important benefit or harm outcome domains that are strongly implied by the decision problem.
+- Prefer broad patient-important outcomes over surrogate details, mechanistic markers, or intervention-specific side-effect lists when possible.
+- Aim for the kind of core outcomes that could plausibly appear in a protocol, Summary of Findings table, or GRADE assessment.
+
+Rules:
+- Use only the question and structured PIC context provided here.
+- Keep the list short. Usually 3 to 5 outcomes is enough.
+- Include both benefit and harm outcomes when that is important for the intervention decision.
+- Do not repeat the population description as an outcome.
+- Do not invent highly specific scales, timepoints, thresholds, or drug-mechanism details that are not implied by the question.
+- Prefer broad domains such as all-cause mortality, global function, cognitive function, symptom severity, quality of life, serious adverse events, caregiver burden, institutionalisation, hospitalization, or other comparable patient-important outcomes when relevant.
+- Avoid narrow adverse-event items such as individual drug toxicities unless the question itself makes that specific harm central.
+- Return concise outcome names, not explanations.
+- Return only JSON in this exact format: `{{"expanded_outcomes":["..."]}}`.

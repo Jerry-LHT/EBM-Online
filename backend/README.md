@@ -646,7 +646,7 @@ http://127.0.0.1:8000/docs
 运行当前配置测试：
 
 ```bash
-PYTHONPATH=backend/src:. pytest -q tests/unit/test_settings.py
+PYTHONPATH=backend/src:. pytest -q tests/unit/infrastructure/test_llm_config.py
 ```
 
 如果新增真实 method，建议至少补两类验证：

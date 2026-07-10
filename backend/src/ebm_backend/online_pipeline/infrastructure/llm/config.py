@@ -98,6 +98,8 @@ def _config_from_payload(
 
 def _normalize_api_mode(value: str) -> str:
     normalized = value.strip().lower()
+    if normalized == "response":
+        normalized = "responses"
     if normalized not in {"chat", "responses", "auto"}:
         raise ValueError("LLM api_mode must be one of: chat, responses, auto")
     return normalized

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import ssl
+import urllib.error
 import urllib.request
 from typing import Any
 
@@ -19,6 +20,7 @@ def call_llm_json(
     model: str | None = None,
     timeout_seconds: float | None = None,
     temperature: float | None = None,
+    tools: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Call the configured LLM and parse a JSON object response."""
 
@@ -35,6 +37,7 @@ def call_llm_json(
             model=selected_model,
             timeout_seconds=timeout,
             temperature=temp,
+            tools=tools,
         )
     elif api_mode == "chat":
         content = _call_chat_text(
@@ -106,6 +109,7 @@ def _call_responses_text(
     model: str,
     timeout_seconds: float,
     temperature: float,
+    tools: list[dict[str, Any]] | None,
 ) -> str:
     payload = {
         "model": model,
@@ -113,6 +117,8 @@ def _call_responses_text(
         "input": prompt,
         "temperature": temperature,
     }
+    if tools:
+        payload["tools"] = tools
     request = urllib.request.Request(
         str(config["base_url"]).rstrip("/") + "/responses",
         data=json.dumps(payload).encode("utf-8"),
@@ -133,22 +139,38 @@ def _call_chat_text(
     timeout_seconds: float,
     temperature: float,
 ) -> str:
-    try:
-        from openai import OpenAI
-    except ImportError as exc:  # pragma: no cover - environment dependent
-        raise RuntimeError("The openai package is required for chat-mode LLM calls") from exc
-    client = OpenAI(api_key=config["api_key"], base_url=config["base_url"], timeout=timeout_seconds)
     messages = [{"role": "system", "content": system}, {"role": "user", "content": prompt}]
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "response_format": {"type": "json_object"},
+    }
+    request = urllib.request.Request(
+        str(config["base_url"]).rstrip("/") + "/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Authorization": f"Bearer {config['api_key']}", "Content-Type": "application/json"},
+        method="POST",
+    )
     try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            response_format={"type": "json_object"},
+        with urllib.request.urlopen(request, timeout=timeout_seconds, context=_ssl_context()) as raw_response:
+            data = json.loads(raw_response.read().decode("utf-8"))
+        return response_text(data)
+    except urllib.error.HTTPError:
+        fallback_payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+        }
+        fallback_request = urllib.request.Request(
+            str(config["base_url"]).rstrip("/") + "/chat/completions",
+            data=json.dumps(fallback_payload).encode("utf-8"),
+            headers={"Authorization": f"Bearer {config['api_key']}", "Content-Type": "application/json"},
+            method="POST",
         )
-    except Exception:
-        response = client.chat.completions.create(model=model, messages=messages, temperature=temperature)
-    return response_text(response)
+        with urllib.request.urlopen(fallback_request, timeout=timeout_seconds, context=_ssl_context()) as raw_response:
+            data = json.loads(raw_response.read().decode("utf-8"))
+        return response_text(data)
 
 
 def _extract_json_object_text(text: str) -> str:

@@ -16,3 +16,4 @@ class QuestionPICO:
     I: list[str] = field(default_factory=list)
     C: list[str] = field(default_factory=list)
     O: list[str] = field(default_factory=list)
+    O_expanded: list[str] = field(default_factory=list)

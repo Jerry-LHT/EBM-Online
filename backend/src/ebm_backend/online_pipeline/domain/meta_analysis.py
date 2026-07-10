@@ -35,6 +35,20 @@ class AnalysisSubgroup:
 
 
 @dataclass(frozen=True)
+class AnalysisSettingExtractionTarget:
+    target_id: str
+    extraction_hint: str | None = None
+
+
+@dataclass(frozen=True)
+class AnalysisSettingStudyCandidate:
+    study_id: str
+    article_id: str | None = None
+    extraction_task_id: str | None = None
+    extraction_targets: list[AnalysisSettingExtractionTarget] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class AnalysisSetting:
     setting_id: str
     setting_family_id: str
@@ -45,7 +59,9 @@ class AnalysisSetting:
     subgroup: AnalysisSubgroup
     data_type: DataType
     eligible_study_ids: list[str] = field(default_factory=list)
+    eligible_study_candidates: list[AnalysisSettingStudyCandidate] = field(default_factory=list)
     excluded_study_ids: list[str] = field(default_factory=list)
+    source_context: dict[str, object] = field(default_factory=dict)
     notes: str = ""
 
 
@@ -80,6 +96,62 @@ class ContinuousResultData:
 
 
 @dataclass(frozen=True)
+class StudyResultTarget:
+    target_id: str
+    setting_id: str
+    study_id: str
+    article_id: str | None = None
+    extraction_hint: str | None = None
+    comparison: StudyResultComparison | None = None
+    outcome: StudyResultOutcome | None = None
+    subgroup: AnalysisSubgroup | None = None
+    data_type: DataType | None = None
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class StudyResultSetting:
+    row_label: str | None = None
+    outcome_label: str | None = None
+    outcome_measure: str | None = None
+    timepoint: str | None = None
+    statistic_type: str | None = None
+    population_or_subgroup: str | None = None
+    experimental_arm_label: str | None = None
+    control_arm_label: str | None = None
+    table_local_notes: str | None = None
+
+
+@dataclass(frozen=True)
+class StudyResultDerivation:
+    method: str = "direct"
+    computed_fields: list[str] = field(default_factory=list)
+    input_values: dict[str, object] = field(default_factory=dict)
+    formula: str | None = None
+    notes: str | None = None
+
+
+@dataclass(frozen=True)
+class CandidateStudyResult:
+    candidate_id: str
+    match_status: str
+    study_result_setting: StudyResultSetting
+    data_type: DataType
+    result_data: DichotomousResultData | ContinuousResultData | None = None
+    include_in_estimate: bool | None = None
+    analysis_disposition: str | None = None
+    resolution_reason: str | None = None
+    derivation: StudyResultDerivation | None = None
+    source_spans: list[EvidenceSourceSpan] = field(default_factory=list)
+    confidence: str | None = None
+    study_local_note: str | None = None
+    study_local_result: dict[str, object] = field(default_factory=dict)
+    setting_alignment: dict[str, object] = field(default_factory=dict)
+    numeric_extraction: dict[str, object] = field(default_factory=dict)
+    note: str | None = None
+
+
+@dataclass(frozen=True)
 class StudyResultRow:
     row_id: str
     setting_id: str
@@ -89,10 +161,14 @@ class StudyResultRow:
     comparison: StudyResultComparison
     outcome: StudyResultOutcome
     subgroup: AnalysisSubgroup
-    result_data: DichotomousResultData | ContinuousResultData | None = None
+    extraction_task_id: str | None = None
     study_year: str | None = None
     missing_reason: str | None = None
     source_spans: list[EvidenceSourceSpan] = field(default_factory=list)
+    result_items: list[CandidateStudyResult] = field(default_factory=list)
+    candidate_results: list[CandidateStudyResult] = field(default_factory=list)
+    study_result_note: str | None = None
+    extraction_status_reason: str | None = None
     notes: str = ""
 
 

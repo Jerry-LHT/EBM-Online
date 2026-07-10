@@ -1,55 +1,24 @@
-"""Application-layer entry point for running online pipeline modules."""
+"""Application facade for module-level use case entry points."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ebm_backend.online_pipeline.application.ports import ModuleMethodResolverPort
-from ebm_backend.online_pipeline.domain.article import CleanedArticle, SearchRetrievalResult
-from ebm_backend.online_pipeline.domain.common import WorkflowConstraints
+from ebm_backend.online_pipeline.application.ports import MethodResolverPort
+from ebm_backend.online_pipeline.domain.article import CleanedArticle
 from ebm_backend.online_pipeline.domain.grade import GradeResult
 from ebm_backend.online_pipeline.domain.meta_analysis import MetaAnalysisResultPackage
-from ebm_backend.online_pipeline.domain.module_config import ModuleRunConfig
 from ebm_backend.online_pipeline.domain.question import QuestionPICO
 from ebm_backend.online_pipeline.domain.risk_of_bias import RiskOfBiasAssessment
-from ebm_backend.online_pipeline.domain.screening import ScreeningCriteria, StudyScreeningResult
+from ebm_backend.online_pipeline.domain.screening import ScreeningCriteria
 from ebm_backend.online_pipeline.domain.study_characteristics import StudyPIOCharacteristics
 
 
 @dataclass(frozen=True)
-class ModuleRunner:
-    resolver: ModuleMethodResolverPort
+class ModuleUseCaseFacade:
+    """Facade retained for modules that still resolve methods via registry wiring."""
 
-    def run_q2pico(self, *, method_name: str, question_text: str) -> QuestionPICO:
-        method = self._resolve_method(module_name="q2pico", method_name=method_name)
-        return method.run(question_text=question_text)
-
-    def run_search_retrieval(
-        self,
-        *,
-        method_name: str,
-        question_pico: QuestionPICO,
-        config: ModuleRunConfig,
-    ) -> SearchRetrievalResult:
-        method = self._resolve_method(module_name="search_retrieval", method_name=method_name)
-        return method.run(question_pico=question_pico, config=config)
-
-    def run_study_screening(
-        self,
-        *,
-        method_name: str,
-        question_text: str,
-        question_pico: QuestionPICO,
-        constraints: WorkflowConstraints,
-        articles: list[CleanedArticle],
-    ) -> StudyScreeningResult:
-        method = self._resolve_method(module_name="study_screening", method_name=method_name)
-        return method.run(
-            question_text=question_text,
-            question_pico=question_pico,
-            constraints=constraints,
-            articles=articles,
-        )
+    resolver: MethodResolverPort
 
     def run_study_pio_extraction(
         self,

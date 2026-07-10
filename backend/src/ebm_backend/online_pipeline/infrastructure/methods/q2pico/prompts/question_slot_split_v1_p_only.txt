@@ -1,0 +1,16 @@
+Task definition:
+Extract the participant or population slot from the clinical question below.
+
+P definition and scope:
+- P means the population, participants, patients, health problem, condition, disease, setting, or subgroup that defines who the question is about.
+- Return concise slot values, not full sentence rewrites.
+
+Rules:
+- Use only information inferable from the question text.
+- Do not invent evidence details that are not present in the question.
+- Do not include intervention, comparator, or outcome terms unless they are part of the population description.
+- Return only JSON in this exact format: `{{"participants":["..."]}}`
+- If no participant or population information is stated, return `{{"participants":[]}}`.
+
+Clinical question:
+{question_text}

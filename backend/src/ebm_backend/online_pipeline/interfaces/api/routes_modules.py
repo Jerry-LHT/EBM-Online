@@ -8,15 +8,20 @@ from typing import TypeVar
 from fastapi import APIRouter, HTTPException
 
 from ebm_backend.online_pipeline.domain.article import CleanedArticle
-from ebm_backend.online_pipeline.domain.module_config import ModuleRunConfig
 from ebm_backend.online_pipeline.domain.common import WorkflowConstraints
 from ebm_backend.online_pipeline.domain.meta_analysis import MetaAnalysisResultPackage
+from ebm_backend.online_pipeline.domain.module_config import ModuleRunConfig
 from ebm_backend.online_pipeline.domain.question import QuestionPICO
 from ebm_backend.online_pipeline.domain.risk_of_bias import RiskOfBiasAssessment
 from ebm_backend.online_pipeline.domain.screening import ScreeningCriteria
 from ebm_backend.online_pipeline.domain.serialization import from_jsonable, to_jsonable
 from ebm_backend.online_pipeline.domain.study_characteristics import StudyPIOCharacteristics
-from ebm_backend.online_pipeline.interfaces.api.dependencies import get_module_runner_for_api
+from ebm_backend.online_pipeline.interfaces.api.dependencies import (
+    get_module_use_case_facade_for_api,
+    get_q2pico_use_case_for_api,
+    get_search_retrieval_use_case_for_api,
+    get_study_screening_use_case_for_api,
+)
 from ebm_backend.online_pipeline.interfaces.api.request_schemas import (
     GradeAssessmentRequest,
     MetaAnalysisRequest,
@@ -36,8 +41,10 @@ T = TypeVar("T")
 @router.post("/q2pico")
 def run_q2pico(payload: Q2PICORequest) -> dict[str, object]:
     question_text = payload.question_text.strip()
-    runner = _runner()
-    result = _run_module(lambda: runner.run_q2pico(method_name=_method_name(payload), question_text=question_text))
+    use_case = get_q2pico_use_case_for_api(method_name=_method_name(payload))
+    result = _run_module(
+        lambda: use_case.execute(question_text=question_text, expand_outcomes=payload.expand_outcomes)
+    )
     return to_jsonable(result)
 
 
@@ -45,12 +52,18 @@ def run_q2pico(payload: Q2PICORequest) -> dict[str, object]:
 def run_search_retrieval(payload: SearchRetrievalRequest) -> dict[str, object]:
     question_pico = _parse_required(payload.question_pico, "question_pico", QuestionPICO)
     config = ModuleRunConfig(max_results=payload.max_results)
-    runner = _runner()
+    use_case = get_search_retrieval_use_case_for_api(
+        method_name=_method_name(payload),
+        mesh_method_name=_optional_method_name(payload.mesh_method_name),
+        textword_method_name=_optional_method_name(payload.textword_method_name),
+    )
     result = _run_module(
-        lambda: runner.run_search_retrieval(
-            method_name=_method_name(payload),
+        lambda: use_case.execute(
             question_pico=question_pico,
             config=config,
+            options=None
+            if payload.mesh_method_name is None and payload.textword_method_name is None
+            else _search_retrieval_options(payload),
         )
     )
     return to_jsonable(result)
@@ -61,13 +74,14 @@ def run_study_screening(payload: StudyScreeningRequest) -> dict[str, object]:
     question_text = payload.question_text.strip()
     question_pico = _parse_required(payload.question_pico, "question_pico", QuestionPICO)
     articles = _parse_required_list(payload.articles, "articles", CleanedArticle)
-    runner = _runner()
+    use_case = get_study_screening_use_case_for_api(method_name=_method_name(payload))
     result = _run_module(
-        lambda: runner.run_study_screening(
-            method_name=_method_name(payload),
+        lambda: use_case.execute(
             question_text=question_text,
             question_pico=question_pico,
-            constraints=WorkflowConstraints(),
+            constraints=WorkflowConstraints(
+                publication_year_range=_optional_text(payload.publication_year_range)
+            ),
             articles=articles,
         )
     )
@@ -79,9 +93,9 @@ def run_study_pio_extraction(payload: StudyPIOExtractionRequest) -> dict[str, ob
     question_pico = _parse_required(payload.question_pico, "question_pico", QuestionPICO)
     included_studies = _required_text_list(payload.included_studies, "included_studies")
     articles = _parse_required_list(payload.articles, "articles", CleanedArticle)
-    runner = _runner()
+    facade = _module_use_case_facade()
     result = _run_module(
-        lambda: runner.run_study_pio_extraction(
+        lambda: facade.run_study_pio_extraction(
             method_name=_method_name(payload),
             question_pico=question_pico,
             included_studies=included_studies,
@@ -95,9 +109,9 @@ def run_study_pio_extraction(payload: StudyPIOExtractionRequest) -> dict[str, ob
 def run_risk_of_bias(payload: RiskOfBiasRequest) -> dict[str, object]:
     included_studies = _required_text_list(payload.included_studies, "included_studies")
     articles = _parse_required_list(payload.articles, "articles", CleanedArticle)
-    runner = _runner()
+    facade = _module_use_case_facade()
     result = _run_module(
-        lambda: runner.run_risk_of_bias(
+        lambda: facade.run_risk_of_bias(
             method_name=_method_name(payload),
             included_studies=included_studies,
             articles=articles,
@@ -114,9 +128,9 @@ def run_meta_analysis(payload: MetaAnalysisRequest) -> dict[str, object]:
     included_studies = _required_text_list(payload.included_studies, "included_studies")
     articles = _parse_required_list(payload.articles, "articles", CleanedArticle)
     study_characteristics = _parse_required_list(payload.study_characteristics, "study_characteristics", StudyPIOCharacteristics)
-    runner = _runner()
+    facade = _module_use_case_facade()
     result = _run_module(
-        lambda: runner.run_meta_analysis(
+        lambda: facade.run_meta_analysis(
             method_name=_method_name(payload),
             review_id=review_id,
             question_text=question_text,
@@ -138,9 +152,9 @@ def run_grade_assessment(payload: GradeAssessmentRequest) -> dict[str, object]:
     study_characteristics = _parse_required_list(payload.study_characteristics, "study_characteristics", StudyPIOCharacteristics)
     risk_of_bias = _parse_required_list(payload.risk_of_bias, "risk_of_bias", RiskOfBiasAssessment)
     meta_analysis_result = _parse_required(payload.meta_analysis_result, "meta_analysis_result", MetaAnalysisResultPackage)
-    runner = _runner()
+    facade = _module_use_case_facade()
     result = _run_module(
-        lambda: runner.run_grade_assessment(
+        lambda: facade.run_grade_assessment(
             method_name=_method_name(payload),
             review_id=review_id,
             question_text=question_text,
@@ -154,8 +168,17 @@ def run_grade_assessment(payload: GradeAssessmentRequest) -> dict[str, object]:
     return to_jsonable(result)
 
 
-def _runner():
-    return get_module_runner_for_api()
+def _module_use_case_facade():
+    return get_module_use_case_facade_for_api()
+
+
+def _search_retrieval_options(payload: SearchRetrievalRequest):
+    from ebm_backend.online_pipeline.domain.search import SearchRetrievalOptions
+
+    return SearchRetrievalOptions(
+        mesh_method_name=_optional_method_name(payload.mesh_method_name),
+        textword_method_name=_optional_method_name(payload.textword_method_name),
+    )
 
 
 def _method_name(payload) -> str:
@@ -172,6 +195,20 @@ def _run_module(action: Callable[[], T]) -> T:
         raise HTTPException(status_code=501, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _optional_method_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    method_name = value.strip()
+    return method_name or None
+
+
+def _optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = value.strip()
+    return text or None
 
 
 def _required_text_list(value: list[str], field_name: str) -> list[str]:

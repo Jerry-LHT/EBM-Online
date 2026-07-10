@@ -1,0 +1,16 @@
+Task definition:
+Extract the comparator or control slot from the clinical question below.
+
+C definition and scope:
+- C means the comparison intervention, control, placebo, usual care, no treatment, reference option, or alternative option against which the intervention is compared.
+- Return concise slot values, not full sentence rewrites.
+
+Rules:
+- Use only information inferable from the question text.
+- Do not invent evidence details that are not present in the question.
+- Do not infer a comparator when the question does not state or clearly imply one.
+- Return only JSON in this exact format: `{{"comparators":["..."]}}`
+- If no comparator information is stated, return `{{"comparators":[]}}`.
+
+Clinical question:
+{question_text}

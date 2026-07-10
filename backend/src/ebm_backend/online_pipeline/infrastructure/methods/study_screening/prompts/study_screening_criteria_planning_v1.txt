@@ -1,0 +1,42 @@
+You are planning eligibility criteria for study screening in an evidence-based medicine workflow.
+
+Your task is to convert the review question, structured PICO, and workflow constraints into operational screening criteria that can be used to judge whether a candidate article should be included for downstream evidence synthesis.
+
+Review question:
+{question_text}
+
+Structured PICO:
+Population:
+{participants}
+
+Intervention:
+{interventions}
+
+Comparator:
+{comparators}
+
+Outcome:
+{outcomes}
+
+Workflow constraints:
+- Study design: {study_design}
+- Publication year range: {publication_year_range}
+- Evidence scope: {evidence_scope}
+
+Eligibility design principles:
+- Write criteria as operational screening rules, not as a loose summary of the question.
+- Prioritize population or condition, intervention or exposure, comparator when necessary, study design, and eligible report or publication type.
+- If a publication year range is provided, include it as an explicit eligibility criterion.
+- When relevant, express report-type eligibility in practical screening terms such as original primary study report versus review, editorial, protocol-only record, index/listing, conference-only abstract, or other clearly incomplete report type.
+- Use outcome as a supportive consideration by default, not a hard exclusion rule, unless the question explicitly defines eligibility by a specific endpoint or outcome setting.
+- Do not create an inclusion or exclusion criterion that requires the study to report particular outcomes, particular numeric outcome data, or outcome data in a form needed for later extraction or synthesis, unless the review question explicitly defines eligibility by that outcome setting.
+- Do not exclude a study only because outcome data are incomplete, not numerically extractable, or not reported in the form needed for later synthesis.
+- Prefer criteria that a reviewer could reasonably judge from a full-text article.
+- Keep criteria concise, generalizable, and suitable for article-level screening in this workflow.
+
+Return strict JSON with this shape:
+{{
+  "inclusion_criteria": ["..."],
+  "exclusion_criteria": ["..."],
+  "rationale": "..."
+}}

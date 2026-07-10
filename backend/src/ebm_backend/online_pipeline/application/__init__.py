@@ -1,1 +1,1 @@
-"""Application-layer contracts and module runners for the Online EBM modules."""
+"""Application-layer ports and use-case facades for the Online EBM modules."""

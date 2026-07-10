@@ -16,6 +16,7 @@ venv/
 *.env.*
 !.env.example
 llm.local.json
+llm.local*.json
 !llm.local.example.json
 
 # IDE
@@ -39,6 +40,7 @@ pg_data/
 .pytest_cache/
 htmlcov/
 .coverage
+.cache/
 
 # Runtime artifacts
 logs/*.log
@@ -50,6 +52,9 @@ benchmark/online_pipeline/meta_analysis/runs/
 benchmark/online_pipeline/grade/runs/
 benchmark/online_pipeline/meta_analysis/*/runs/
 benchmark/online_pipeline/grade/*/runs/
+benchmark/online_pipeline/meta_analysis/subtask2_study_results/debug_runs/
+benchmark/online_pipeline/meta_analysis/subtask2_study_results/tmp_rerun/
+benchmark/online_pipeline/meta_analysis/subtask2_study_results/logs/
 benchmark/online_pipeline/archive/
 benchmark/online_pipeline/raw_data/grade/intermediate/alignment_v2/table_family_predictions.jsonl
 benchmark/online_pipeline/raw_data/grade/intermediate/alignment_v2/row_setting_predictions.jsonl

@@ -11,7 +11,11 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Online EBM Pipeline",
         version="1.0.0",
-        description="Module-level APIs for the Online EBM backend. Some modules remain placeholder interfaces until concrete methods are added.",
+        description=(
+            "Module-level APIs for the Online EBM backend. "
+            "Q2PICO and Search Retrieval have concrete backend implementations; "
+            "some other modules still remain placeholder interfaces."
+        ),
     )
     app.include_router(modules_router)
 

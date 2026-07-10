@@ -12,17 +12,24 @@ class ModuleMethodRequest(BaseModel):
 
 
 class Q2PICORequest(ModuleMethodRequest):
+    method_name: str = "default"
     question_text: str = Field(min_length=1)
+    expand_outcomes: bool = False
 
 
 class SearchRetrievalRequest(ModuleMethodRequest):
+    method_name: str = "pubmed_pmc"
     question_pico: dict[str, Any]
     max_results: int = Field(default=20, ge=1)
+    mesh_method_name: str | None = None
+    textword_method_name: str | None = None
 
 
 class StudyScreeningRequest(ModuleMethodRequest):
+    method_name: str = "default"
     question_text: str = Field(min_length=1)
     question_pico: dict[str, Any]
+    publication_year_range: str | None = None
     articles: list[dict[str, Any]]
 
 

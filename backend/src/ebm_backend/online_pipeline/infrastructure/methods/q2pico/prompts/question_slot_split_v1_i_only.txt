@@ -1,0 +1,16 @@
+Task definition:
+Extract the intervention slot from the clinical question below.
+
+I definition and scope:
+- I means the intervention, treatment, exposure, prevention, diagnostic approach, management strategy, or active option whose effect or value is being asked about.
+- Return concise slot values, not full sentence rewrites.
+
+Rules:
+- Use only information inferable from the question text.
+- Do not invent evidence details that are not present in the question.
+- Do not include comparator or outcome terms unless they are inseparable from the intervention name.
+- Return only JSON in this exact format: `{{"interventions":["..."]}}`
+- If no intervention information is stated, return `{{"interventions":[]}}`.
+
+Clinical question:
+{question_text}
