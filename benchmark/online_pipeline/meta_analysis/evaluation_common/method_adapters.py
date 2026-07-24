@@ -2,12 +2,33 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from ebm_backend.online_pipeline.infrastructure.methods.meta_analysis.loader import get_meta_analysis_subtask_method
+from ebm_backend.online_pipeline.infrastructure.methods.meta_analysis.factory import (
+    build_production_study_evidence_agent as build_study_evidence_method,
+)
+from benchmark.online_pipeline.meta_analysis.subtask3_analysis_methods.methods.method_test import (
+    build_method as build_analysis_methods_method,
+)
+from benchmark.online_pipeline.meta_analysis.subtask4_subgroup_analysis.methods.method_test import (
+    build_method as build_subgroup_analysis_method,
+)
+from benchmark.online_pipeline.meta_analysis.subtask5_overall_estimates.methods.method_test import (
+    build_method as build_overall_estimates_method,
+)
+from ebm_backend.online_pipeline.infrastructure.methods.meta_analysis.analysis_method_selection.contextual.method import (
+    build_method as build_production_analysis_methods_method,
+)
+from ebm_backend.online_pipeline.infrastructure.methods.meta_analysis.subgroup_analysis.statistical.method import (
+    build_method as build_production_subgroup_analysis_method,
+)
+from ebm_backend.online_pipeline.infrastructure.methods.meta_analysis.overall_estimation.statistical.method import (
+    build_method as build_production_overall_estimates_method,
+)
 from benchmark.online_pipeline.meta_analysis.evaluation_common.article_store import load_articles_for_instance
 
 
@@ -21,7 +42,6 @@ def predict_subtask2(
     hint_policy: str = "none",
 ) -> dict[str, Any]:
     targets = build_subtask2_targets(instance=instance, gold=gold, hint_policy=hint_policy)
-    tasks = build_subtask2_tasks(instance=instance, gold=gold, hint_policy=hint_policy)
     if method in {"gold", "official_csv_oracle", "subtask2_official_csv_oracle"}:
         if gold.get("study_result_candidate_sets"):
             return {
@@ -37,15 +57,37 @@ def predict_subtask2(
             "review_id": instance["review_id"],
             "study_result_rows": _gold_rows_with_target_ids(gold.get("study_result_rows") or [], targets=targets),
     }
-    if method == "method_source_local_candidate_extraction":
+    if method == "method_article_evidence_agent":
         articles = load_articles_for_instance(dataset_dir=dataset_dir, instance=instance)
-        workflow_instance = _subtask2_workflow_instance(instance=instance, articles=articles, targets=targets, tasks=tasks, hint_policy=hint_policy)
+        setting = instance.get("analysis_setting") or {}
+        evidence_targets = [
+            _article_evidence_target(target=target, setting=setting)
+            for target in targets
+        ]
         with _temporary_subtask2_llm_config(llm_config):
-            method_obj = get_meta_analysis_subtask_method("study_results", _subtask_method_name(method))
+            method_obj = build_study_evidence_method()
+            rows: list[dict[str, Any]] = []
+            for article in articles:
+                study_id = str(article.get("study_id") or "")
+                study_targets = [
+                    target
+                    for target in evidence_targets
+                    if str(target.get("study_id") or "") == study_id
+                ]
+                if not study_id or not study_targets:
+                    continue
+                result = method_obj.run(
+                    review_id=str(instance["review_id"]),
+                    targets=study_targets,
+                    study_id=study_id,
+                    article=article,
+                    plan_hash=str(instance.get("plan_hash") or instance.get("instance_id") or "benchmark"),
+                )
+                rows.extend(result.get("study_result_rows") or [])
             return {
                 "instance_id": instance["instance_id"],
                 "review_id": instance["review_id"],
-                "study_result_rows": method_obj.run(instance=workflow_instance, articles=articles),
+                "study_result_rows": rows,
             }
     raise ValueError(f"Unknown Subtask 2 method: {method}")
 
@@ -55,43 +97,34 @@ def _temporary_subtask2_llm_config(llm_config: str | Path | None):
     if llm_config is None:
         yield
         return
-    old_value = os.environ.get("SUBTASK2_LLM_CONFIG")
-    os.environ["SUBTASK2_LLM_CONFIG"] = str(llm_config)
+    old_value = os.environ.get("LLM_CONFIG_PATH")
+    os.environ["LLM_CONFIG_PATH"] = str(llm_config)
     try:
         yield
     finally:
         if old_value is None:
-            os.environ.pop("SUBTASK2_LLM_CONFIG", None)
+            os.environ.pop("LLM_CONFIG_PATH", None)
         else:
-            os.environ["SUBTASK2_LLM_CONFIG"] = old_value
+            os.environ["LLM_CONFIG_PATH"] = old_value
 
 
-def _subtask2_workflow_instance(
+def _article_evidence_target(
     *,
-    instance: dict[str, Any],
-    articles: list[dict[str, Any]],
-    targets: list[dict[str, Any]],
-    tasks: list[dict[str, Any]],
-    hint_policy: str = "none",
+    target: dict[str, Any],
+    setting: dict[str, Any],
 ) -> dict[str, Any]:
-    article_study_ids = {str(article.get("study_id") or "") for article in articles if article.get("study_id")}
-    linked_study_ids = [
-        str(link.get("study_id"))
-        for link in instance.get("article_study_links") or []
-        if str(link.get("study_id") or "") in article_study_ids
-    ]
-    included_studies = linked_study_ids or [
-        str(study_id)
-        for study_id in instance.get("included_studies") or []
-        if str(study_id) in article_study_ids
-    ]
+    """Add the frozen case setting without consulting benchmark gold values."""
+
     return {
-        "instance_id": instance["instance_id"],
-        "review_id": instance["review_id"],
-        "analysis_setting": _workflow_subtask2_setting(instance.get("analysis_setting") or {}, hint_policy=hint_policy),
-        "included_studies": list(dict.fromkeys(included_studies)),
-        "study_result_targets": targets,
-        "study_result_tasks": tasks,
+        **target,
+        "population_scope": setting.get("population_scope"),
+        "comparison": setting.get("comparison"),
+        "outcome": setting.get("outcome"),
+        "timepoint": setting.get("timepoint"),
+        "subgroup": setting.get("subgroup"),
+        "data_type": setting.get("data_type"),
+        "result_selection_policy": setting.get("result_selection_policy"),
+        "effect_measure_plan": setting.get("effect_measure_plan"),
     }
 
 
@@ -185,7 +218,7 @@ def build_subtask2_targets(*, instance: dict[str, Any], gold: dict[str, Any] | N
         return _targets_in_gold_row_order(gold_rows=gold.get("study_result_rows") or [], planned_targets=planned_targets, setting_id=setting_id)
     if planned_targets:
         return planned_targets
-    if gold is not None:
+    if gold is not None and gold.get("study_result_rows"):
         rows = list(gold.get("study_result_rows") or [])
         counts: dict[tuple[str, str], int] = {}
         hints_by_study = _source_context_hints_by_study(instance.get("source_context") or {})
@@ -224,50 +257,6 @@ def build_subtask2_targets(*, instance: dict[str, Any], gold: dict[str, Any] | N
         }
         for study_id in study_ids
     ]
-
-
-def _workflow_subtask2_setting(setting: dict[str, Any], *, hint_policy: str = "none") -> dict[str, Any]:
-    candidates = []
-    for candidate in setting.get("eligible_study_candidates") or []:
-        if not isinstance(candidate, dict):
-            continue
-        targets = []
-        for target in candidate.get("extraction_targets") or []:
-            if not isinstance(target, dict):
-                continue
-            targets.append(
-                {
-                    "target_id": target.get("target_id"),
-                    "extraction_hint": _hint_from_parts(
-                        target.get("extraction_hint_parts"),
-                        policy=hint_policy,
-                        fallback=target.get("extraction_hint"),
-                    ),
-                }
-            )
-        candidates.append(
-            {
-                "study_id": candidate.get("study_id"),
-                "article_id": candidate.get("article_id"),
-                "extraction_task_id": candidate.get("extraction_task_id"),
-                "extraction_hint": _hint_from_parts(
-                    candidate.get("extraction_hint_parts"),
-                    policy=hint_policy,
-                    fallback=_candidate_legacy_hint(candidate),
-                ),
-                "extraction_targets": targets,
-            }
-        )
-    return {
-        "setting_id": setting.get("setting_id"),
-        "comparison": setting.get("comparison"),
-        "outcome": setting.get("outcome"),
-        "timepoint": setting.get("timepoint"),
-        "subgroup": setting.get("subgroup"),
-        "data_type": setting.get("data_type"),
-        "eligible_studies": setting.get("eligible_studies") or setting.get("eligible_study_ids") or [],
-        "eligible_study_candidates": candidates,
-    }
 
 
 def _targets_from_eligible_study_candidates(
@@ -571,11 +560,19 @@ def predict_subtask3(*, instance: dict[str, Any], gold: dict[str, Any], method: 
             "analysis_methods": gold.get("analysis_methods") or [],
         }
     if method in {"method_test", "analysis_methods_rule_v1"}:
-        method_obj = get_meta_analysis_subtask_method("analysis_methods", _subtask_method_name(method))
+        method_obj = build_analysis_methods_method()
         return {
             "instance_id": instance["instance_id"],
             "review_id": instance["review_id"],
             "analysis_methods": method_obj.run(instance=instance),
+        }
+    if method in {"method_production", "contextual_v1"}:
+        method_obj = build_production_analysis_methods_method()
+        production_instance = _production_compatible_instance(instance)
+        return {
+            "instance_id": instance["instance_id"],
+            "review_id": instance["review_id"],
+            "analysis_methods": method_obj.run(instance=production_instance),
         }
     raise ValueError(f"Unknown Subtask 3 method: {method}")
 
@@ -591,7 +588,7 @@ def predict_subtask4(*, instances: list[dict[str, Any]], gold_by_id: dict[str, d
             for instance in instances
         ]
     if method in {"method_test", "stats_pooling_v1"}:
-        method_obj = get_meta_analysis_subtask_method("subgroup_analysis", _subtask_method_name(method))
+        method_obj = build_subgroup_analysis_method()
         grouped: dict[str, list[dict[str, Any]]] = {}
         for instance in instances:
             family_id = str(instance["analysis_setting"]["setting_family_id"])
@@ -600,6 +597,36 @@ def predict_subtask4(*, instances: list[dict[str, Any]], gold_by_id: dict[str, d
         for family_instances in grouped.values():
             family_payload = method_obj.run(instances=family_instances)
             predictions_by_id.update(family_payload)
+        return [
+            {
+                "instance_id": instance["instance_id"],
+                "review_id": instance["review_id"],
+                "subgroup_results": predictions_by_id.get(str(instance["instance_id"]), {"subgroup_estimates": [], "subgroup_difference_tests": []}),
+            }
+            for instance in instances
+        ]
+    if method in {"method_production", "statistical_v1"}:
+        method_obj = build_production_subgroup_analysis_method()
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        production_instances = [
+            _production_compatible_instance(instance) for instance in instances
+        ]
+        for production_instance in production_instances:
+            family_id = str(
+                production_instance["analysis_setting"]["setting_family_id"]
+            )
+            grouped.setdefault(family_id, []).append(production_instance)
+        predictions_by_id: dict[str, dict[str, Any]] = {}
+        for family_instances in grouped.values():
+            family_payload = method_obj.run(instances=family_instances)
+            instances_by_id = {
+                str(item["instance_id"]): item for item in family_instances
+            }
+            for instance_id, payload in family_payload.items():
+                predictions_by_id[instance_id] = _with_benchmark_candidate_ids(
+                    payload,
+                    instance=instances_by_id[instance_id],
+                )
         return [
             {
                 "instance_id": instance["instance_id"],
@@ -619,16 +646,128 @@ def predict_subtask5(*, instance: dict[str, Any], gold: dict[str, Any], method: 
             "overall_estimates": gold.get("overall_estimates") or [],
         }
     if method in {"method_test", "stats_pooling_v1"}:
-        method_obj = get_meta_analysis_subtask_method("overall_estimates", _subtask_method_name(method))
+        method_obj = build_overall_estimates_method()
         return {
             "instance_id": instance["instance_id"],
             "review_id": instance["review_id"],
             "overall_estimates": method_obj.run(instance=instance),
         }
+    if method in {"method_production", "statistical_v1"}:
+        method_obj = build_production_overall_estimates_method()
+        production_instance = _production_compatible_instance(instance)
+        payload = method_obj.run(instance=production_instance)
+        if isinstance(payload, list):
+            payload = {"overall_estimates": payload}
+        estimates = _rows_with_benchmark_candidate_id(
+            payload.get("overall_estimates") or [],
+            instance=instance,
+        )
+        return {
+            "instance_id": instance["instance_id"],
+            "review_id": instance["review_id"],
+            "overall_estimates": estimates,
+        }
     raise ValueError(f"Unknown Subtask 5 method: {method}")
 
 
-def _subtask_method_name(method: str) -> str:
-    if method in {"study_results_rule_v1", "study_results_passthrough_v1", "analysis_methods_rule_v1", "stats_pooling_v1"}:
-        return "method_test"
-    return method
+def _production_compatible_instance(instance: dict[str, Any]) -> dict[str, Any]:
+    """Adapt legacy benchmark rows without weakening the backend contract.
+
+    Historical Subtask 3-5 datasets predate explicit endpoint/change and SMD
+    direction metadata. Their continuous values were already evaluated in the
+    reported direction, so the benchmark adapter marks them as pre-aligned
+    post-intervention rows. Real backend workflows must obtain this metadata
+    from planning, extraction, and candidate resolution.
+    """
+
+    result = deepcopy(instance)
+    setting = (
+        result.get("analysis_setting")
+        if isinstance(result.get("analysis_setting"), dict)
+        else {}
+    )
+    if str(setting.get("data_type") or "") != "Continuous":
+        return result
+    source_context = (
+        setting.get("source_context")
+        if isinstance(setting.get("source_context"), dict)
+        else {}
+    )
+    definition = (
+        source_context.get("setting_definition")
+        if isinstance(source_context.get("setting_definition"), dict)
+        else {}
+    )
+    definition.setdefault("continuous_result_frame_priority", ["post_intervention"])
+    source_context["setting_definition"] = definition
+    setting["source_context"] = source_context
+    result["analysis_setting"] = setting
+
+    legacy_rows = result.get("meta_analysis_data_rows")
+    if not isinstance(legacy_rows, list):
+        legacy_rows = result.get("study_result_rows") or []
+    data_rows = []
+    for row in legacy_rows:
+        if not isinstance(row, dict):
+            continue
+        normalized = dict(row)
+        normalized.setdefault("data_row_id", normalized.get("row_id") or f"data-row::{normalized.get('study_id')}")
+        normalized.setdefault("setting_family_id", setting.get("setting_family_id") or setting.get("setting_id"))
+        data_rows.append(normalized)
+    result["meta_analysis_data_rows"] = data_rows
+
+    alignment = {
+        "result_frame": "post_intervention",
+        "change_score_definition": "not_applicable",
+        "scale_direction": "higher_is_better",
+        "effect_multiplier": 1,
+        "status": "ready",
+        "rationale": "Legacy benchmark row treated as already direction-aligned.",
+    }
+    for row in result.get("meta_analysis_data_rows") or []:
+        if not isinstance(row, dict):
+            continue
+        row.setdefault("continuous_effect_alignment", dict(alignment))
+        for field in ("result_items", "candidate_results"):
+            for item in row.get(field) or []:
+                if isinstance(item, dict):
+                    item.setdefault("continuous_effect_alignment", dict(alignment))
+    return result
+
+
+def _with_benchmark_candidate_ids(
+    payload: dict[str, Any],
+    *,
+    instance: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        **payload,
+        "subgroup_estimates": _rows_with_benchmark_candidate_id(
+            payload.get("subgroup_estimates") or [],
+            instance=instance,
+        ),
+        "subgroup_difference_tests": _rows_with_benchmark_candidate_id(
+            payload.get("subgroup_difference_tests") or [],
+            instance=instance,
+        ),
+    }
+
+
+def _rows_with_benchmark_candidate_id(
+    rows: list[dict[str, Any]],
+    *,
+    instance: dict[str, Any],
+) -> list[dict[str, Any]]:
+    setting = (
+        instance.get("analysis_setting")
+        if isinstance(instance.get("analysis_setting"), dict)
+        else {}
+    )
+    candidate_id = str(
+        setting.get("candidate_id") or setting.get("setting_family_id") or ""
+    )
+    return [
+        {**row, "candidate_id": candidate_id}
+        for row in rows
+        if isinstance(row, dict)
+    ]

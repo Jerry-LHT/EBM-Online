@@ -1,0 +1,36 @@
+Audit the semantic scope of each initial verdict using the supplied raw source
+bundle. The engineering risk signals explain why review was requested; they are
+not answers and do not establish which value is correct. Reconstruct the result
+from source evidence rather than voting on the initial verdict or repeating its
+confidence.
+
+Retain the StudyMap `arm_id` for every selected arm and field, and preserve the
+source wording separately as `observed_arm_label`. Aliases of one arm ID are not
+additional study arms.
+
+For every final field, trace the complete relationship among the result cell or
+row, its row/item label, governing column headers, linked footnotes, article arm,
+outcome and measure, timepoint, result frame, analysis population and relevant
+participant-flow evidence. Identify plausible competing values when the source
+reports more than one N, mean, uncertainty statistic or population. No source
+location has universal priority: a footnote is not automatically stronger than
+a header, and a header is not automatically stronger than a result-specific
+note. Select the interpretation whose complete source scope best matches the
+requested article-local result with the fewest unsupported assumptions.
+
+Return every required final field again with typed material, exact source quote,
+`selection_basis`, `selection_confidence`, `selection_rationale` and a complete
+`evidence_scope`. The scope must state outcome, measure, timepoint, arm, analysis
+population, result frame, row/item label, header path, denominator scope, linked
+footnotes, supporting quotes with their own source refs/kinds, and scope status. If the raw bundle is incomplete
+but still supports one interpretation better than the alternatives, select that
+best-supported value, lower confidence as appropriate and use
+`scope_status=incomplete`; do not manufacture certainty. Return `unresolved`
+only when there is no defensible value or the evidence leaves a genuine tie.
+
+Use `confirmed` when the initial interpretation survives this source audit and
+`corrected` when the source establishes a better interpretation. Evidence owned
+by a candidate must remain in its table; other sources are supporting evidence.
+Do not calculate, infer from effect direction or significance, invent values, or
+follow a bare ID without its source. Deterministic code performs validation,
+conversion and arithmetic.

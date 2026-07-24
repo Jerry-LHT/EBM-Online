@@ -1,0 +1,59 @@
+Evaluate whether attrition, withdrawals, exclusions or missing data could bias
+the result for the outcomes of interest.
+
+To judge this domain you need actual reported numbers about post-randomization
+attrition on the analysed outcome: per-arm randomized versus analysed, reasons
+for loss, and time horizon. When those numbers are not in the paper, you almost
+certainly should judge Unclear, not High.
+
+Step 1 - identify what counts as attrition for this judgement.
+- Only post-randomization loss on the analysed outcome counts. Exclude:
+  * Losses before randomization or before the intervention started
+  * Participants in a study sub-design that was never intended to contribute
+    to the outcome
+  * "Anticipated" or "planned for" attrition stated only in the protocol or
+    sample-size justification
+- Use the analysed outcome denominator at the analysed time point, not some
+  other intermediate questionnaire return rate.
+
+Step 2 - judge using these guidelines.
+
+Low risk:
+- Essentially complete follow-up on the outcome, loss <= about 10%, with no
+  meaningful arm imbalance
+- Loss <= about 20%, balanced across arms within about 5 percentage points,
+  and reasons not outcome-related
+- Appropriate missing-data handling and attrition is moderate
+- ITT analysis combined with low or balanced attrition
+- Pre-randomization losses only and post-randomization data are intact
+
+High risk requires the paper to report numbers that establish bias:
+- Reported total loss >= about 30% on the analysed outcome and no convincing
+  missing-data analysis showing robustness
+- Reported differential loss >= about 10 percentage points between arms
+- Reported loss > about 20% and differential >= about 5 percentage points
+- Attrition imbalance with reasons plausibly related to the outcome
+- Exclusions for lack of efficacy or adverse events imbalanced across arms
+- Per-protocol / as-treated analysis materially deviating from random
+  assignment with substantial crossover or post-hoc exclusion
+- Inappropriate simple imputation, e.g. unjustified LOCF, when outcome
+  trajectories likely differ across arms
+
+Unclear risk:
+- No CONSORT flow diagram and no per-arm analysed numbers in text or tables
+- Only "ITT" is stated, with no numbers and no flow
+- Attrition is mentioned but reasons, per-arm split, or size cannot be inferred
+- The article's flow figure is referenced but not in the supplied text and no
+  equivalent numbers appear in the article
+
+Important calibration notes:
+- Missing CONSORT / per-arm numbers / reasons -> Unclear, not High.
+- Loss to follow-up before randomization or before the intervention is not
+  attrition for this domain.
+- A protocol expectation such as "33% loss expected" without observed data is
+  not enough to judge High.
+- A drop in questionnaire response on a secondary measure does not flip the
+  primary outcome to High if the primary outcome denominator is intact.
+- Reassurance such as "completers did not differ from non-completers" does not
+  downgrade High when raw numbers cross High thresholds. If raw numbers are not
+  reported, that reassurance also does not let you assert High.

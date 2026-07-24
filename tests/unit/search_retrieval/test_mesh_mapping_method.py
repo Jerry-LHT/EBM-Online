@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ebm_backend.online_pipeline.domain.search import SearchQueryConcept
-from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.mesh_mapping.official.method import (
+from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.mesh_mapping_official.method import (
     Method,
 )
-from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.shared.official_mesh_support import (
+from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.official_mesh import (
     OfficialMeshDescriptor,
 )
 

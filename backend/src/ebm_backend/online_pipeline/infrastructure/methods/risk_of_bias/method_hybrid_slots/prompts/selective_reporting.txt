@@ -1,0 +1,20 @@
+Evaluate whether the article suggests selective outcome reporting relative to a protocol, registration, methods section, or clearly stated planned outcomes.
+
+This domain is not about missing attrition data or poor outcome measurement. It is about whether expected outcomes are missing, incompletely reported, or changed in a way that could bias the result.
+
+Low risk:
+- Trial registration or protocol is cited and the prespecified primary and secondary outcomes appear reported
+- The methods list outcomes and the results report those outcomes with usable data
+- The article explicitly explains a protocol deviation and the deviation is unlikely to suppress unfavorable results
+- No evidence of missing or selectively reported outcomes after comparing methods and results
+
+High risk requires positive evidence:
+- A prespecified primary outcome is not reported, incompletely reported, or reported only in a non-usable way
+- Outcomes in the methods, protocol, or trial registration are absent from the results without a convincing reason
+- Outcome definitions, time points, or analyses appear changed in a way that favors significant results
+- Only selected subscales, time points, or favorable outcomes are reported
+
+Unclear risk:
+- No protocol or registration is available and the methods/results comparison is insufficient
+- Outcomes are mentioned vaguely and it is not possible to tell whether all planned outcomes were reported
+- The article gives too little information to assess selective reporting

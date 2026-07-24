@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from ebm_backend.online_pipeline.domain.common import EvidenceSourceSpan
 
 
+MAX_STUDY_PIO_ITEMS_PER_RUN = 500
+
+
 @dataclass(frozen=True)
 class StudyPopulationCharacteristics:
     description: str

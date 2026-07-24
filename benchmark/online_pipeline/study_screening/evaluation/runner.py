@@ -14,7 +14,9 @@ from ebm_backend.online_pipeline.domain.question import QuestionPICO
 from ebm_backend.online_pipeline.domain.screening import ScreeningDecision, StudyScreeningResult
 from ebm_backend.online_pipeline.domain.serialization import to_jsonable
 from benchmark.online_pipeline.shared.jsonl import write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
+from benchmark.online_pipeline.study_screening.evaluation.method_adapter import (
+    load_article_screening_method,
+)
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
 from benchmark.online_pipeline.study_screening.evaluation.io import (
@@ -47,7 +49,11 @@ def run_benchmark(
     if limit is not None:
         instances = instances[:limit]
         gold_by_id = {str(instance["instance_id"]): gold_by_id[str(instance["instance_id"])] for instance in instances}
-    method_obj = None if method in {"gold", "study_screening.gold"} else load_method(method, default_module=MODULE_NAME)
+    method_obj = (
+        None
+        if method in {"gold", "study_screening.gold"}
+        else load_article_screening_method(method)
+    )
 
     predictions: list[dict[str, Any]] = []
     for instance in instances:

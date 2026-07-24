@@ -13,7 +13,9 @@ DEFAULT_LLM_CONFIG_PATH = "llm.local.json"
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 DEFAULT_API_MODE = "responses"
 DEFAULT_TIMEOUT_SECONDS = 180.0
-DEFAULT_TEMPERATURE = 0.0
+DEFAULT_TEMPERATURE: float | None = None
+DEFAULT_CONTEXT_WINDOW_TOKENS = 128_000
+DEFAULT_SCREENING_INPUT_TOKEN_BUDGET = 48_000
 
 
 @dataclass(frozen=True)
@@ -23,17 +25,21 @@ class LLMConfig:
     model: str
     api_mode: str = DEFAULT_API_MODE
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
-    temperature: float = DEFAULT_TEMPERATURE
+    temperature: float | None = DEFAULT_TEMPERATURE
+    context_window_tokens: int = DEFAULT_CONTEXT_WINDOW_TOKENS
+    screening_input_token_budget: int = DEFAULT_SCREENING_INPUT_TOKEN_BUDGET
     source_path: Path | None = None
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "api_key": self.api_key,
             "base_url": self.base_url,
             "model": self.model,
             "api_mode": self.api_mode,
-            "timeout_seconds": str(self.timeout_seconds),
-            "temperature": str(self.temperature),
+            "timeout_seconds": self.timeout_seconds,
+            "temperature": self.temperature,
+            "context_window_tokens": self.context_window_tokens,
+            "screening_input_token_budget": self.screening_input_token_budget,
         }
 
 
@@ -79,10 +85,23 @@ def _config_from_payload(
         payload.get("timeout_seconds") or payload.get("timeout"),
         DEFAULT_TIMEOUT_SECONDS,
     )
-    temperature = _float_value(
+    temperature = _optional_float_value(
         payload.get("temperature"),
-        DEFAULT_TEMPERATURE,
     )
+    context_window_tokens = _positive_int_value(
+        payload.get("context_window_tokens"),
+        DEFAULT_CONTEXT_WINDOW_TOKENS,
+        name="context_window_tokens",
+    )
+    screening_input_token_budget = _positive_int_value(
+        payload.get("screening_input_token_budget"),
+        DEFAULT_SCREENING_INPUT_TOKEN_BUDGET,
+        name="screening_input_token_budget",
+    )
+    if screening_input_token_budget >= context_window_tokens:
+        raise ValueError(
+            "screening_input_token_budget must be smaller than context_window_tokens"
+        )
     missing = [name for name, value in {"api_key": api_key, "model": model}.items() if not value]
     if missing:
         raise ValueError(f"Missing required LLM config fields in {source_path}: {missing}")
@@ -93,15 +112,20 @@ def _config_from_payload(
         api_mode=api_mode,
         timeout_seconds=timeout_seconds,
         temperature=temperature,
+        context_window_tokens=context_window_tokens,
+        screening_input_token_budget=screening_input_token_budget,
         source_path=source_path,
     )
 
 def _normalize_api_mode(value: str) -> str:
     normalized = value.strip().lower()
-    if normalized == "response":
+    if normalized in {"response", "auto"}:
         normalized = "responses"
-    if normalized not in {"chat", "responses", "auto"}:
-        raise ValueError("LLM api_mode must be one of: chat, responses, auto")
+    if normalized not in {"chat", "responses"}:
+        raise ValueError(
+            "LLM api_mode must be one of: chat, responses, auto "
+            "('auto' resolves to 'responses')"
+        )
     return normalized
 
 
@@ -109,6 +133,21 @@ def _float_value(value: Any, default: float) -> float:
     if value is None or str(value).strip() == "":
         return default
     return float(value)
+
+
+def _optional_float_value(value: Any) -> float | None:
+    if value is None or str(value).strip() == "":
+        return None
+    return float(value)
+
+
+def _positive_int_value(value: Any, default: int, *, name: str) -> int:
+    if value is None or str(value).strip() == "":
+        return default
+    parsed = int(value)
+    if parsed <= 0:
+        raise ValueError(f"{name} must be positive")
+    return parsed
 
 
 def _text(value: Any) -> str:

@@ -1,203 +1,186 @@
 # Study Screening 实现说明
 
-本文档记录 `study_screening` 模块当前的真实后端实现边界。
+稳定业务语义见 [`Study Screening 任务契约`](../contracts/study_screening.md)。
 
-当前实现目标不是 benchmark 标签拟合，而是独立后端里可复用的真实 EBM 候选全文排纳能力。
-
-## 1. 模块职责
-
-`study_screening` 负责完成这条业务链路：
-
-```text
-question_text + QuestionPICO + constraints + retrieved articles
--> criteria planning
--> criterion-wise article judgment
--> binary include/exclude aggregation
--> StudyScreeningResult
-```
-
-它对应的是 retrieval 之后、进入后续 study PIO / risk of bias / synthesis 之前的正式排纳步骤。
-
-## 2. 分层边界
-
-Application 负责编排 screening 的主流程：
-
-```text
-RunStudyScreening.execute(question_text, question_pico, constraints, articles)
-```
-
-当前分层里，Application 负责：
-
-- 接收 screening 输入
-- 调 infrastructure method
-- 返回 `StudyScreeningResult`
-
-Infrastructure 负责具体能力实现：
-
-- criteria planning prompt
-- article criterion judgment prompt
-- article section selection
-- criterion judgment aggregation
-- LLM 调用与 JSON 解析
-
-调用方向保持为：
-
-```text
-interfaces/api -> application/use_cases -> application/ports -> infrastructure/methods
-```
-
-当前主调用链是：
+## 1. 调用链与分层
 
 ```text
 POST /modules/study-screening
 -> interfaces/api/routes_modules.py
 -> interfaces/api/dependencies.py
 -> application/use_cases/run_study_screening.py
--> application/ports/evidence_review.py
+-> criteria planner + article screener ports
 -> infrastructure/methods/study_screening/
 ```
 
-## 3. 当前实现结构
+Application 负责业务编排、系统 criteria、metadata deterministic rules、文章并发、失败传播、顺序恢复和最终
+decision aggregation。Infrastructure methods 负责证据选择、prompt、严格 JSON Schema LLM 调用和响应解析。
 
-当前正式 method 为：
+完整 workflow 还装配独立业务能力 `article_qualification/content_llm`。它位于 Search 后、review-specific
+Screening 前，使用内容证据判断 primary RCT results report，并把成功判断缓存到
+`runtime/cache/article_qualification_content_v1`。
+
+## 2. Concrete methods
 
 ```text
-default
-```
-
-当前目录结构：
-
-```text
-backend/src/ebm_backend/online_pipeline/infrastructure/methods/study_screening/
-  method.py
+study_screening/
+  errors.py
+  llm_support.py
   factory.py
-  criteria_planner.py
-  article_screener.py
-  section_selector.py
-  prompts/
-    study_screening_criteria_planning_v1.txt
-    study_screening_article_criterion_judge_v1.txt
+  abstract_screening_llm/
+    criteria_planner.py
+    article_screener.py
+    abstract_selector.py
+    prompts/
+  full_text_screening_llm/
+    criteria_planner.py
+    article_screener.py
+    section_selector.py
+    prompts/
+  staged_synthesis_screening_llm/
+    evidence.py
+    method.py
+    prompts/
+
+article_qualification/
+  factory.py
+  content_llm/
+    method.py
+    evidence.py
+    cache.py
+    prompts/
 ```
 
-## 4. 方法设计
+Factory 根据业务 `evidence_scope` 构造匹配的 planner/screener pair：
 
-当前方法采用两段式设计：
+- `full_text`：production 默认；最多选择 8 个优先 section，总 LLM article evidence 上限 60,000 字符；
+- `abstract`：只使用 title、metadata 和 abstract，不回退全文；abstract 上限 20,000 字符。
 
-1. `criteria_planner`
-2. `article_criterion_judge`
+完整 workflow 不使用上述二选一 factory，而使用 `build_production_staged_study_screening`：同一个 provider
+配置快照同时注入 criteria planner、coarse screener、synthesis-ready screener 和 Meta-analysis。独立模块 API
+继续使用原 pair，保持既有输入行为。
 
-### 4.1 Criteria planning
+## 3. Criteria planning
 
-输入：
+LLM planner 只规划 review-specific P/I/C eligibility。Outcome 默认不传入；study design、primary-report status、
+publication year、language 和 retraction 由系统处理，不允许 planner 重复生成。
 
-- `question_text`
-- `QuestionPICO`
-- `WorkflowConstraints`
+Application 根据 `ScreeningPolicy` 追加：
 
-`WorkflowConstraints.publication_year_range` 是可选年限过滤约束。若提供，工程侧会确保它进入 `ScreeningCriteria.inclusion_criteria`。
+- RCT randomized-allocation inclusion criterion；
+- 当前 pairwise workflow 的 individually randomized parallel-group inclusion criterion；cluster、crossover、
+  cluster-crossover、其他非平行设计或无法确认设计的文章不满足该必要标准；
+- primary-results-report inclusion criterion。
 
-输出：
+两个 planner 都使用 strict JSON Schema，要求且只允许：
 
-- `ScreeningCriteria.inclusion_criteria`
-- `ScreeningCriteria.exclusion_criteria`
-- `ScreeningCriteria.rationale`
-
-目标是把 review question 操作化成可执行的排纳 rubric，而不是机械重复 PICO 文本。
-
-### 4.2 Article criterion judgment
-
-对每篇 `CleanedArticle`：
-
-- 先用 deterministic section selection 选出 screening 相关 sections
-- 再用 LLM 逐条判断 criterion
-
-这一阶段只接收 `ScreeningCriteria` 和候选文章 evidence bundle。它不再重复接收 `QuestionPICO`、PMID、PMCID 等上游识别信息；发表年份作为 article metadata 保留，因为它可能用于判断年限过滤 criterion。
-
-LLM 只输出：
-
-- `yes`
-- `no`
-- `unclear`
-
-以及：
-
-- 简短 `reason`
-- `evidence_spans`
-- `overall_note`
-
-LLM 不直接决定最终工程态 `include/exclude`。
-
-### 4.3 Binary aggregation
-
-最终 decision 由代码聚合：
-
-- 任一 exclusion criterion = `yes` -> `exclude`
-- 任一 inclusion criterion = `no` -> `exclude`
-- 其他情况 -> `include`
-
-这意味着：
-
-- prompt 内部允许 `unclear`
-- 最终 API 仍然保持二元 `include/exclude`
-- 默认采用保守映射：没有明确排除信号时，不因 `unclear` 自动排除
-
-## 5. EBM 语义约束
-
-当前 prompt 与方法约束遵循真实 EBM screening 语义，而不是 benchmark 拟合：
-
-- 只根据文章中明确证据判断，不脑补未写出的研究细节
-- `outcome` 默认不是硬性纳排标准，除非问题本身明确把某 endpoint 当 eligibility definition
-- 若提供 `publication_year_range`，它会作为显式 eligibility criterion 进入 screening
-- 不因结果不完整、没有可提取数值、或 outcome 未按后续 synthesis 需要的格式报告而排除文章
-- 优先依据 title、abstract、methods、participants、interventions、results 等 section 判断 eligibility
-
-## 6. 当前输入语义
-
-当前 `study_screening` 使用的是检索后的 `CleanedArticle` 列表。
-
-需要明确：
-
-- 当前 `study_id` 实际上仍是 article-level proxy
-- 当前模块还没有实现多报告合并后的真正 study-level collation
-- 因此本版 screening 更准确地说是：
-  `retrieved full-text-capable article screening`
-
-这和 Cochrane 严格意义上的 study-level collation 仍有差距，但足以承接当前后端 workflow。
-
-## 7. 测试
-
-单元测试按模块放在：
-
-```text
-tests/unit/study_screening/
+```json
+{
+  "inclusion_criteria": ["..."],
+  "exclusion_criteria": ["..."],
+  "rationale": "..."
+}
 ```
 
-覆盖：
+## 4. Metadata enrichment 与 deterministic screening
 
-- section selection
-- criteria planner
-- article screener
-- method aggregation
-- use case delegation
-- factory
+Search Retrieval 的 PubMed parser 读取并传递 publication types、languages、trial registry IDs、related article
+types 和 retraction/correction flags。
 
-真实外部冒烟测试放在：
+Application 的确定性规则只执行：
 
-```text
-tests/integration/study_screening/test_live_llm_screening.py
+1. publication year range；
+2. allowed languages；
+3. retraction/retraction notice。
+
+PubMed Publication Type、MeSH 和 trial registry indexing 不参与确定性排除，也不会进入文章类型、粗筛或
+精筛 prompt。它们仍可保留在内部 metadata，但不能替代原文证据。
+
+确定性或 LLM 排除时，聚合结果的 `exclusion_reason` 使用对应 judgment 的实际 reason。Criterion 标题仍保留
+在 `criterion_judgments`，不会再把“Publication year is within ...”这类 criterion 标题误报为具体原因。
+
+## 5. 完整 workflow 的 staged screening
+
+Workflow 在 Search 后先做硬规则 precheck，再运行 article qualification：
+
+- 一篇文章一次内容判断调用，首次失败加一次 retry；
+- 输入仅含 title、完整 abstract、原始正文 paragraph/明确 excerpt，以及必要 raw table XML/明确 slice；
+- 不确定和技术失败都继续到 review screening；技术失败不伪造成医学 exclusion；
+- cache key 包含 study ID、evidence hash、prompt/schema/method version、model 与 context budget。
+
+之后 application 调用 `prepare_criteria`，再调用 Meta synthesis planner。
+Planner 仍只读取 question/PICO/criteria；其 plan 冻结后同时传给 Screening 和后续 `RunMetaAnalysis.execute`，
+Meta 不会再次 planning。
+
+`CoarseSynthesisStudyArticleScreener`：
+
+- 输入 title、完整 abstract（若存在）和最多 4 个内容相关原始正文 paragraph；不输入 PubMed type metadata，
+  不输入 table；默认最多使用共享 context budget 中的 12,000 tokens；
+- 不读取 table；缺少信息或未见目标数值必须 `advance`，仅明确不匹配才 `exclude`。
+
+`SynthesisReadyStudyArticleScreener`：
+
+- 只处理 coarse survivors；输入最多 10 个相关正文 blocks、5 个相关 raw-table blocks；总输入从 model
+  context window 扣除 prompt/schema/output/safety reserve 后确定，默认上限 48,000 tokens；
+- section/table 的标题或 caption 可以为空，排序同时检查 source content；
+- 正文传完整 paragraph；仅超限时形成带字符坐标的 partial `section_excerpt`；表格传完整 raw XML，超限时
+  形成带坐标的 exact `table_slice`，不做表格清洗或值解析；
+- 对每个 frozen target 判断 current runtime supported、needs Meta investigation、methodologically eligible but
+  unsupported，或 not eligible；支持 arm-level binary/continuous 和 direct effect + CI/SE 的 GIV 形态；不提取
+  最终 Meta row、不做算术。
+
+模型只返回按位置命名的 `target_N` 语义判断，代码将其绑定到 frozen target ID，避免让模型生成工程 ID。
+模型给出的 quote 必须在本次 source bundle 中逐字或经 Unicode/空白归一化匹配，之后才形成 source span。
+
+## 6. 单阶段 LLM article judgment
+
+两个 screeners 都为本次 criteria 动态生成 strict JSON Schema。每个 `inc_N`、`exc_N` 必须完整返回：
+
+```json
+{
+  "judgment": "yes | no",
+  "reason": "...",
+  "evidence_spans": ["..."]
+}
 ```
 
-默认关闭，需显式打开：
+额外字段、缺失 criterion、非二元 judgment 或非字符串 span 都会使本次尝试失败。`evidence_spans` 属于可选
+provenance：工程保留可在当前输入中逐字或经空白/Unicode 格式归一化匹配的 spans，无法追溯的 spans 会被丢弃，
+不会改变 criterion judgment。Abstract 缺失时不调用 LLM，所有必要 inclusion criteria 为 `no`，因此最终排除。
 
-```bash
-RUN_LIVE_LLM_TESTS=1 PYTHONPATH=backend/src:. pytest tests/integration/study_screening/test_live_llm_screening.py -q
+## 7. 并发、retry 与排序
+
+Criteria planning 与 synthesis planning 顺序执行。文章类型判断默认最多 8 篇并发；粗筛文章之间并发，完成后
+只有 survivors 进入并发精筛。筛选每层使用显式 `max_workers=4` 上限，最终按原文章顺序恢复。API 和
+application 均限制每次最多 500 篇。
+Staged method 把 SDK retry 设为 0，stage wrapper 负责首次加一次 retry；任一文章重试耗尽会使整个任务失败，
+不会产生伪 exclusion。
+
+## 8. API
+
+HTTP API 默认：
+
+```json
+{
+  "rct_only": true,
+  "report_scope": "primary_results_report",
+  "outcome_eligibility_enabled": false,
+  "exclude_retracted": true,
+  "evidence_scope": "full_text"
+}
 ```
 
-## 8. 非目标
+年份优先使用 `publication_year_start` / `publication_year_end`。旧 `publication_year_range` 只作为过渡兼容。
+Schema 类型/范围错误使用 FastAPI 422；进入 route 后的业务输入错误使用模块稳定 HTTP 400 错误码。
 
-首版明确不做：
+## 9. 已知边界
 
-- active learning / ranking
-- 多 reviewer / 多 agent 协商
-- multi-report study collation
-- benchmark-specific criteria patch
+- `study_id` 仍是 article-level proxy；
+- `included_studies` 仅为下游兼容别名；
+- 尚未实现 secondary/companion report collation；
+- abstract final screening 可能因证据不足产生更多假阴性；
+- metadata 规则依赖 Search Retrieval 能获得的 PubMed fields，但不会把缺少 indexing 当作明确排除证据。
+- Review eligibility 与 Meta routing 分开；没有非空 canonical `ArticleTable.raw_xml` 时，代码确定性标记
+  `meta_unavailable_no_readable_table`。该文章仍进入 Study PIO 和 RoB，只是不进入当前 table-local Meta agent。
+- 当前 Meta runtime 不接收 time-to-event、rate/count 或未二分 ordinal data；staged screening 会显式保留
+  方法学 eligibility，而不是把它写成无结果。

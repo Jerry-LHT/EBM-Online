@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+from collections import defaultdict
+from threading import Lock
+
 import pytest
 
-from ebm_backend.online_pipeline.infrastructure.methods.q2pico.extractor import (
+from ebm_backend.online_pipeline.infrastructure.methods.q2pico.errors import (
+    Q2PICOInvocationError,
+)
+from ebm_backend.online_pipeline.infrastructure.methods.q2pico.split_slot_llm.extractor import (
     Q2PICOSplitLLMExtractor,
 )
 
@@ -33,7 +39,10 @@ def test_run_extracts_split_slots_and_normalizes_values() -> None:
 
     extractor = Q2PICOSplitLLMExtractor(config=TEST_CONFIG, llm_caller=fake_llm_caller)
 
-    result = extractor.run(question_text="Should adults with depression receive SSRI versus placebo for remission?")
+    result = extractor.run(
+        question_text="Should adults with depression receive SSRI versus placebo for remission?",
+        expand_outcomes=False,
+    )
 
     assert result.P == ["adults with depression"]
     assert result.I == ["SSRI"]
@@ -43,7 +52,7 @@ def test_run_extracts_split_slots_and_normalizes_values() -> None:
     assert sorted(seen_calls) == ["comparators", "interventions", "outcomes", "participants"]
 
 
-def test_run_optionally_expands_outcomes() -> None:
+def test_run_expands_outcomes_by_default() -> None:
     seen_calls: list[str] = []
 
     def fake_llm_caller(**kwargs):
@@ -72,12 +81,118 @@ def test_run_optionally_expands_outcomes() -> None:
             "Should patients with dementia and agitation/aggressive behaviour be treated "
             "with atypical anti-psychotics compared to no pharmacological treatment?"
         ),
-        expand_outcomes=True,
     )
 
     assert result.O == []
     assert result.O_expanded == ["agitation severity", "serious adverse events", "mortality"]
     assert sorted(seen_calls) == ["comparators", "expanded_outcomes", "interventions", "outcomes", "participants"]
+
+
+def test_run_retries_only_the_failed_slot_once_and_sends_its_schema() -> None:
+    attempts: dict[str, int] = defaultdict(int)
+    schemas: dict[str, dict] = {}
+    lock = Lock()
+    responses = {
+        "q2pico_p_slot": {"participants": ["adults"]},
+        "q2pico_i_slot": {"interventions": ["SSRI"]},
+        "q2pico_c_slot": {"comparators": ["placebo"]},
+        "q2pico_o_slot": {"outcomes": ["remission"]},
+    }
+
+    def fake_llm_caller(**kwargs):
+        stage = kwargs["json_schema_name"]
+        with lock:
+            attempts[stage] += 1
+            schemas[stage] = kwargs["json_schema"]
+            attempt = attempts[stage]
+        if stage == "q2pico_p_slot" and attempt == 1:
+            raise RuntimeError("temporary provider failure")
+        return responses[stage]
+
+    result = Q2PICOSplitLLMExtractor(
+        config=TEST_CONFIG,
+        llm_caller=fake_llm_caller,
+    ).run(
+        question_text="Should adults receive SSRI versus placebo for remission?",
+        expand_outcomes=False,
+    )
+
+    assert result == result.__class__(
+        P=["adults"],
+        I=["SSRI"],
+        C=["placebo"],
+        O=["remission"],
+    )
+    assert attempts == {
+        "q2pico_p_slot": 2,
+        "q2pico_i_slot": 1,
+        "q2pico_c_slot": 1,
+        "q2pico_o_slot": 1,
+    }
+    assert schemas["q2pico_p_slot"] == {
+        "type": "object",
+        "properties": {"participants": {"type": "array", "items": {"type": "string"}}},
+        "required": ["participants"],
+        "additionalProperties": False,
+    }
+    assert all(kwargs is not None for kwargs in schemas.values())
+
+
+def test_outcome_expansion_retries_once_without_repeating_successful_slots() -> None:
+    attempts: dict[str, int] = defaultdict(int)
+
+    def fake_llm_caller(**kwargs):
+        stage = kwargs["json_schema_name"]
+        attempts[stage] += 1
+        responses = {
+            "q2pico_p_slot": {"participants": ["adults"]},
+            "q2pico_i_slot": {"interventions": ["SSRI"]},
+            "q2pico_c_slot": {"comparators": ["placebo"]},
+            "q2pico_o_slot": {"outcomes": ["remission"]},
+            "q2pico_expanded_outcomes": {"expanded_outcomes": ["quality of life"]},
+        }
+        if stage == "q2pico_expanded_outcomes" and attempts[stage] == 1:
+            return {"wrong": []}
+        return responses[stage]
+
+    result = Q2PICOSplitLLMExtractor(
+        config=TEST_CONFIG,
+        llm_caller=fake_llm_caller,
+    ).run(
+        question_text="Should adults receive SSRI versus placebo for remission?",
+        expand_outcomes=True,
+    )
+
+    assert result.O_expanded == ["quality of life"]
+    assert attempts == {
+        "q2pico_p_slot": 1,
+        "q2pico_i_slot": 1,
+        "q2pico_c_slot": 1,
+        "q2pico_o_slot": 1,
+        "q2pico_expanded_outcomes": 2,
+    }
+
+
+def test_run_fails_after_one_retry_when_a_required_slot_still_fails() -> None:
+    calls = 0
+
+    def fake_llm_caller(**kwargs):
+        nonlocal calls
+        calls += 1
+        return {"wrong": []}
+
+    extractor = Q2PICOSplitLLMExtractor(
+        config=TEST_CONFIG,
+        llm_caller=fake_llm_caller,
+        labels=("P",),
+    )
+
+    with pytest.raises(Q2PICOInvocationError) as error:
+        extractor.run(question_text="Should adults receive treatment?")
+
+    assert error.value.stage == "P"
+    assert error.value.attempts == 2
+    assert calls == 2
 
 
 def test_rendered_prompts_keep_runtime_input_and_remove_template_placeholders() -> None:
@@ -113,8 +228,11 @@ def test_run_rejects_missing_required_slot_key() -> None:
         labels=("P",),
     )
 
-    with pytest.raises(ValueError, match="participants"):
+    with pytest.raises(Q2PICOInvocationError) as error:
         extractor.run(question_text="Should adults receive treatment?")
+
+    assert error.value.stage == "P"
+    assert error.value.attempts == 2
 
 
 def test_run_normalizes_auto_api_mode_for_existing_llm_helper() -> None:
@@ -130,7 +248,7 @@ def test_run_normalizes_auto_api_mode_for_existing_llm_helper() -> None:
         labels=("P",),
     )
 
-    extractor.run(question_text="Should adults receive treatment?")
+    extractor.run(question_text="Should adults receive treatment?", expand_outcomes=False)
 
     assert seen_config["api_mode"] == "responses"
 

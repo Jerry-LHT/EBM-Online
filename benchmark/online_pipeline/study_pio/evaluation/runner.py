@@ -23,9 +23,11 @@ from ebm_backend.online_pipeline.domain.question import QuestionPICO
 from ebm_backend.online_pipeline.domain.study_characteristics import StudyPIOCharacteristics
 
 from benchmark.online_pipeline.shared.jsonl import append_jsonl, read_jsonl, write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
+from benchmark.online_pipeline.study_pio.evaluation.method_adapter import (
+    load_study_pio_benchmark_method,
+)
 from benchmark.online_pipeline.study_pio.evaluation.io import load_dataset
 from benchmark.online_pipeline.study_pio.evaluation.judge import FIELDS, judge_predictions
 from benchmark.online_pipeline.study_pio.evaluation.metrics import evaluate_match_rows
@@ -176,7 +178,7 @@ def _predictions(
 ) -> list[dict[str, Any]]:
     if method in {"gold", "study_pio.gold"}:
         return _gold_predictions(instances=instances, gold_by_id=gold_by_id, articles_by_id=articles_by_id)
-    method_obj = load_method(method, default_module="study_pio")
+    method_obj = load_study_pio_benchmark_method(method)
     if hasattr(method_obj, "configure_for_benchmark"):
         method_obj.configure_for_benchmark(llm_config=llm_config, workers=workers, run_dir=run_dir, resume=resume)
     return _method_predictions(

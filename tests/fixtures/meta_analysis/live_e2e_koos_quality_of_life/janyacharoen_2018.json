@@ -1,0 +1,34 @@
+{
+  "article_id": "pmc::PMC6323346",
+  "study_id": "Janyacharoen 2018",
+  "metadata": {
+    "title": "Physical exercise for knee osteoarthritis",
+    "pmid": "30656170",
+    "pmc_id": "PMC6323346",
+    "source_type": "copied real article table fixture",
+    "publication_year": "2018",
+    "mesh_terms": [],
+    "doi": "10.12965/jer.1836392.196"
+  },
+  "xml_content": {"sections": []},
+  "tables": [
+    {
+      "table_id": "t4",
+      "caption": "KOOS score before and after exercise in week 4th, week 8th, and week 12th in experimental and control groups (CG: n=20, EG: n=20)",
+      "rows": [],
+      "raw_xml": "<table-wrap id=\"t4-jer-14-6-1059\"><label>Table 4 (target-column excerpt)</label><caption><p>KOOS score at week 12 in experimental and control groups (CG: n=20, EG: n=20)</p></caption><table><thead><tr><th>Variable</th><th>CG, mean±SD, 12th week (n=20)</th><th>EG, mean±SD, 12th week (n=20)</th></tr></thead><tbody><tr><td>Knee related quality of life</td><td>51.6±1.2</td><td>68.3±8.9</td></tr></tbody></table><table-wrap-foot><fn><p>Values are presented as mean±standard deviation.</p></fn><fn><p>CG, control group; EG, experimental group.</p></fn></table-wrap-foot></table-wrap>"
+    }
+  ],
+  "source": {
+    "database": "copied-live-fixture",
+    "retrieval_rank": null,
+    "retrieval_score": null,
+    "raw_source_url": null,
+    "raw_record_id": "PMC6323346"
+  },
+  "fixture_provenance": {
+    "copy_scope": "target-column excerpt copied from article Table 4: outcome row, 12-week arm headers, means, SDs, totals, and defining footnotes",
+    "omitted_as_out_of_scope": "baseline, 4-week, and 8-week columns",
+    "benchmark_imported_at_runtime": false
+  }
+}

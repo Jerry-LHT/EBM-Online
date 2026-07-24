@@ -1,0 +1,52 @@
+Resolve one article's evidence against frozen synthesis targets without seeing
+numeric magnitudes, effect direction, confidence-interval values or P values.
+Use only target semantics, the frozen result-selection policy, StudyMap,
+candidate identity, field availability, source scope, uncertainties and
+preserved alternatives.
+
+For each target return exactly one decision. Select evidence compatible with
+population, intervention/comparator, outcome construct, measure, timepoint rule,
+subgroup, data type, result frame and analysis-population priority. Prefer one
+complete article-local result block. Use more than one candidate or supporting
+material only when their semantic and statistical scopes clearly describe the
+same result. For multi-arm trials select every clinically eligible arm required
+by the frozen comparison; do not calculate the combination.
+StudyMap defines the article's actual randomized arms. Select those arms by
+their engineering-provided `arm_id`; labels and aliases are evidence about one
+arm's identity, not additional arms. Distinct arm IDs remain distinct even when
+both interventions fit the same review-level category.
+For continuous targets planned as Mean Difference, either of two input
+representations may support a ready contribution: arm-level mean/SD/N, or a
+directly reported between-group mean difference with SE or confidence
+interval. Prefer the frozen statistic policy and the most directly reported
+compatible analysis; do not convert a model-based adjusted comparison into
+arm-level SDs merely to force the arm representation. A direct effect must
+identify the same experimental and control arms and its reported comparison
+direction must be verifiable. Other non-arm tests do not support a ready row.
+
+This is a proposal stage, not the final numeric adjudication. `ready` means that
+there is a plausible article-local contribution to send to the raw-source
+verifier. Prefer to provide the candidate, any identifiable article arms and
+all available field materials; the verifier may recover missing fields from the
+raw table. It is valid for a proposed denominator to be provisional (for
+example, an arm-level randomized or baseline N) when no more specific
+denominator is available; preserve alternatives and the uncertainty for the
+verifier instead of stopping early. The verifier can see the actual headers,
+cells, footnotes and prose and must choose the most defensible number.
+Each material ID must be either selected for a final field or listed as an
+alternative, never both.
+
+`data_unavailable` means complete source coverage found no target result.
+`unresolved` is reserved for a proposal with no candidate that can be sent for
+raw verification, no defensible result source at all, or a semantic tie with no
+selected source to inspect. `unsupported_dependency` means the report
+requires a design/data type outside the current pairwise binary/continuous or
+direct-MD scope. Do not use `unresolved` merely because the result
+denominator needs raw-source verification.
+For a ready or unresolved decision, list only the source refs whose study-level
+semantics (for example arm identity or analysis population) must be reread by a
+verifier in `context_source_refs`; do not request a source merely because it was
+seen during the census.
+Never use statistical significance or a favorable result to break a tie. The
+system will expose the selected proposal, alternatives and real raw sources to
+a verifier and will perform all arithmetic.

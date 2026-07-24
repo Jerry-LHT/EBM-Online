@@ -1,0 +1,34 @@
+You are planning operational eligibility criteria for title-and-abstract screening in an evidence-based medicine workflow.
+
+Review question:
+{question_text}
+
+Structured PICO:
+- Population: {participants}
+- Intervention: {interventions}
+- Comparator: {comparators}
+- Outcome: {outcomes}
+- Outcome eligibility: {outcome_eligibility}
+
+Workflow constraints:
+- Study design: {study_design}
+- Publication year range: {publication_year_range}
+- Evidence scope: {evidence_scope}
+
+Design criteria for this screening stage:
+- Write concise article-level rules that can normally be judged from the title, publication year, and abstract.
+- Prioritize population or condition, intervention or exposure, and comparator when essential.
+- Study design, primary-report status, publication year, language, retraction, and explicit publication-type rules are added or evaluated outside this LLM. Do not duplicate them.
+- Use comparator or outcome as a hard eligibility rule only when the review question makes it essential and it can reasonably be identified from an abstract.
+- When outcome eligibility is disabled, do not create any criterion requiring an outcome to be measured, reported, or numerically extractable.
+- Do not require outcome values, extractable numeric data, detailed intervention parameters, subgroup details, or other information normally established from full text.
+- Do not create review-specific criteria that normally cannot be established from an abstract; this method makes a final binary decision from the available abstract evidence.
+- Exclusions may cover clearly ineligible populations or interventions. Do not duplicate system report-type rules.
+- Preserve recall: criteria should remove clearly irrelevant records without pretending that abstract screening can establish full-text eligibility.
+
+Return strict JSON with this shape:
+{{
+  "inclusion_criteria": ["..."],
+  "exclusion_criteria": ["..."],
+  "rationale": "..."
+}}

@@ -13,11 +13,11 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[5]))
 
 from ebm_backend.online_pipeline.domain.serialization import to_jsonable
-from ebm_backend.online_pipeline.infrastructure.methods.grade.imprecision.evidence import build_threshold_research_context
+from ebm_backend.online_pipeline.infrastructure.methods.grade.imprecision.method_llm_web.evidence import build_threshold_research_context
 from benchmark.online_pipeline.grade.imprecision.evaluation.io import load_dataset
 from benchmark.online_pipeline.grade.imprecision.evaluation.metrics import build_comparisons, evaluate_predictions
 from benchmark.online_pipeline.shared.jsonl import append_jsonl, read_jsonl, write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
+from benchmark.online_pipeline.grade.method_adapter import load_grade_domain_benchmark_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
 
@@ -74,7 +74,11 @@ def run_benchmark(
         instances = instances[:limit]
     instances = [_apply_threshold_context_variant(instance, threshold_context_variant) for instance in instances]
     gold_by_id = {str(instance["instance_id"]): gold_by_id[str(instance["instance_id"])] for instance in instances}
-    method_obj = None if method in {"gold", "grade.gold", "oracle"} else load_method(method, default_module=MODULE_NAME)
+    method_obj = (
+        None
+        if method in {"gold", "grade.gold", "oracle"}
+        else load_grade_domain_benchmark_method("imprecision", method)
+    )
     existing_predictions = _load_existing_predictions(run_dir / "predictions.jsonl") if resume else []
     predictions = _predict_all(
         instances=instances,
@@ -142,7 +146,7 @@ def _predict(*, instance: dict[str, Any], gold: dict[str, Any], method: str, met
             "domain": instance["domain"],
             "judgement": gold.get("judgement") or {},
         }
-    method_obj = method_obj or load_method(method, default_module=MODULE_NAME)
+    method_obj = method_obj or load_grade_domain_benchmark_method("imprecision", method)
     output = _run_method_on_instance(method_obj=method_obj, instance=instance)
     return {
         "instance_id": instance["instance_id"],

@@ -1,0 +1,12 @@
+Classify this article for high-recall workflow routing.
+
+Decision meanings:
+- pass: content establishes a primary randomized trial results report.
+- exclude: content positively establishes an ineligible article type or non-randomized design.
+- advance_uncertain: supplied content is incomplete or genuinely ambiguous.
+
+Trial-design details are factual descriptors, not review-specific eligibility rules. Cite short verbatim evidence spans from the supplied sources. Do not infer absence from partial coverage.
+
+ARTICLE CONTENT
+{evidence}
+

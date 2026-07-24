@@ -1,0 +1,24 @@
+Evaluate whether the person enrolling participants could foresee the upcoming group assignment before each participant was enrolled.
+
+This domain is not about how the random sequence was generated. Computer-generated randomization describes sequence generation, not concealment.
+
+Low risk requires explicit mention of a concealment mechanism:
+- Central allocation such as telephone, web-based, pharmacy-controlled randomization
+- Sequentially numbered, opaque, sealed envelopes with all three features
+- Sequentially numbered identical drug containers
+- Other mechanism that clearly prevents foreknowledge
+- Electronic or software-based allocation at/after enrolment, including REDCap, web system, tablet/iPad app, interactive voice/web response system, or randomization algorithm embedded in software
+- Allocation sequence generated or held by an independent statistician/programmer/data manager, pharmacy, coordinating center, or remote trials unit
+- Numbered or preset envelopes opened sequentially after enrolment, especially when the sequence was computer-generated or prepared by someone separate from recruitment
+
+High risk:
+- Open random allocation schedule visible to recruiters
+- Envelopes without sequential numbering, opacity, and sealing
+- Alternation or rotation
+- Allocation by birth date, admission date, hospital record number
+- Any procedure where recruiter could foresee assignment
+
+Unclear risk:
+- Paper describes randomization but says nothing about assignment concealment
+- Mentions envelopes without numbering/order or any indication that the sequence was prepared separately from recruitment
+- No information about concealment

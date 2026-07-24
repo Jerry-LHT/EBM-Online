@@ -1,0 +1,86 @@
+Adjudicate one article's already verified source-local evidence cards against
+the frozen synthesis targets. The raw sources were read independently. Do not
+invent missing context, recalculate values or treat an ID as evidence; use each
+card's exact source scope, quote, header path, footnote links, arm identity and
+uncertainty.
+
+Select a complete supported result representation for each target. Evidence
+from multiple sources may be combined only when it describes the same
+article-local outcome, measure, timepoint, result frame, analysis population and
+article arm. A denominator or participant-flow material from another source is
+supporting evidence; it does not change the candidate table's outcome identity.
+For multi-arm trials select the actual eligible StudyMap arm IDs required by the
+frozen comparison.
+
+The payload lists alternative supported result representations. Select exactly
+one complete representation for a confirmed or corrected verdict. In the direct
+continuous representation, select one `direct_effect` card and one matching
+`direct_uncertainty` card. The uncertainty card may contain a reported SE or a
+reported confidence interval; deterministic code derives the final SE. Do not
+reuse one evidence ID for two fields and do not mix an incomplete arm-level
+representation into a complete direct-effect representation.
+
+Every verdict must return `direct_effect_semantics`. For a dichotomous target
+or a continuous arm-level representation, mark its comparison direction,
+change-score direction, basis and confidence `not_applicable`, with a concise
+rationale. For a continuous direct effect, provide the working comparison
+direction and, when the result is a change score, the working change-score
+direction. These are the directions
+used for deterministic normalization; they are not required to be literal
+author wording. If the article does not state the subtraction order, you may
+infer a working interpretation only from the grounded evidence in this
+payload: unique arm identity, the named scale's clinical direction, same-result
+arm summaries, and an explicit article interpretation such as which group
+improved more. Record `basis: "cross_source_inference"`, confidence, and a
+concise rationale describing the evidence and any equivalent interpretation.
+Do not infer a direction from treatment expectations alone, and do not invent
+or recalculate the reported effect magnitude. If the evidence does not support
+a stable working direction, mark the direct-effect semantics insufficient and
+return an `unresolved` verdict instead of assigning a default sign.
+
+When the same-result arm summaries establish a clinically directional contrast,
+they can resolve an otherwise unordered direct label. For example, if a named
+symptom scale is higher-is-worse and the experimental arm has the more negative
+post-minus-baseline change, a valid working pair is
+`control_minus_experimental` with `post_minus_baseline`; the algebraically
+equivalent `experimental_minus_control` with `baseline_minus_post` is also
+valid. Choose one pair, explain the arm-level and scale-direction evidence, and
+record `basis: "cross_source_inference"`. This uses the summaries only to
+interpret orientation; it must not replace, recompute, or numerically validate
+the reported direct estimate.
+
+Generic role wording such as control, intervention, treatment, experimental or
+comparator does not establish arm identity. Rely on the StudyMap canonical arm,
+explicit aliases, regimen descriptions and the source-local observed label. Do
+not merge distinct arms merely because they share a role. Do not split one arm
+merely because different tables use supported aliases.
+
+Choose candidate evidence by semantic fit and source scope, never by effect
+magnitude, significance or convenience. Once one representation has been
+selected, its sign may be interpreted using the named scale and an explicit
+same-result clinical interpretation; this is direction normalization, not a
+reason to select a more favorable candidate. Distinguish a hard semantic conflict
+from incomplete scope documentation. If the numeric fields form one defensible
+representation and the remaining uncertainty is limited to an incompletely
+documented analysis population, denominator linkage or exact timepoint label,
+select the best-supported evidence and record the limitation as an assumption
+or competing interpretation. Retain the evidence card's low or medium
+confidence and incomplete or requires_audit scope; deterministic code marks the
+affected final fields as provisional. Return unresolved only when no defensible
+representation exists, a required numeric field is absent, evidence is
+semantically incompatible, or genuinely tied interpretations remain after
+comparing the verified cards. Reference evidence_ids only; the system copies
+the grounded materials and performs deterministic validation and all
+arithmetic.
+
+For a continuous target, also classify the clinical direction of its named
+scale. Use source_reported only when the article evidence states which direction
+is better or worse. Use expert_inference when a clearly identified standard
+instrument has a well-established direction even though this article does not
+repeat it; explain the instrument-based reasoning and do not present it as an
+article quote. Use insufficient_information when the scale, version or direction
+cannot be established reliably. For a dichotomous target use not_applicable.
+Scale direction is clinical interpretation metadata: an unknown direction does
+not by itself make a post-intervention experimental-minus-control MD
+statistically unavailable. It remains essential when opposite-direction scales
+or change-score subtraction orders must be harmonized.

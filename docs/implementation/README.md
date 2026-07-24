@@ -4,6 +4,9 @@
 
 设计文档回答“系统应该是什么”，实现文档回答“代码应该怎么落地、边界在哪里、后续开发按什么规则推进”。
 
+稳定任务目标、输入输出和上下游责任以 [`docs/contracts/`](../contracts/README.md) 为准；本目录只记录
+当前代码分层、concrete adapters、运行方式和测试入口。
+
 当前这组文档描述已收口的后端实现，以及仍在迭代中的模块实现状态。不要把某个模块的完成状态自动外推到其他模块。
 
 ## 当前文档
@@ -11,7 +14,12 @@
 - [后端框架实现设计](backend-framework.md)
 - [Q2PICO 实现说明](q2pico.md)
 - [Search Retrieval 实现说明](search-retrieval.md)
+- [Article Qualification 实现说明](article-qualification.md)
 - [Study Screening 实现说明](study-screening.md)
+- [Study PICO 实现说明](study-pio.md)
+- [Risk of Bias 实现说明](risk-of-bias.md)
+- [Meta-analysis 实现说明](meta-analysis.md)
+- [GRADE 实现说明](grade.md)
 - [Meta-analysis Subtask 2 当前实现](meta-analysis-subtask2.md)
 
 ## 当前覆盖范围
@@ -21,7 +29,11 @@
 - `q2pico`
 - `search_retrieval`
 - `study_screening`
-- 这三个模块对应的 application / infrastructure / interface 分层约束
+- `study_pio`
+- `risk_of_bias`
+- `meta_analysis` 的 application orchestration 与显式 subtask injection
+- `grade` 的四域并发 orchestration 与独立 method packaging
+- 这些模块对应的 application / infrastructure / interface 分层约束
 
 Meta-analysis Subtask 2 已有一个可运行的公共 method，但其候选召回、复杂表格读取与 recovery 仍在持续验证，
 不应视为完全收口的实现。

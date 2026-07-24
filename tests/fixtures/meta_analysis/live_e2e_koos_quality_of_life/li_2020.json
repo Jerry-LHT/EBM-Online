@@ -1,0 +1,34 @@
+{
+  "article_id": "pmc::PMC7367519",
+  "study_id": "Li 2020",
+  "metadata": {
+    "title": "Physical activity intervention for people with knee osteoarthritis",
+    "pmid": "32618578",
+    "pmc_id": "PMC7367519",
+    "source_type": "copied real article table fixture",
+    "publication_year": "2020",
+    "mesh_terms": [],
+    "doi": "10.2196/19116"
+  },
+  "xml_content": {"sections": []},
+  "tables": [
+    {
+      "table_id": "table2",
+      "caption": "Participant outcomes and results of the primary analysis",
+      "rows": [],
+      "raw_xml": "<table-wrap id=\"table2\"><label>Table 2 (target-column excerpt)</label><caption><p>Participant outcomes and results of the primary analysis.</p></caption><table><thead><tr><th colspan=\"2\">Measures</th><th>Immediate group, mean (SD), 13 weeks (T1; n=24)</th><th>Delay group, mean (SD), 13 weeks (T1; n=24)</th></tr></thead><tbody><tr><td colspan=\"4\">Knee Injury and Osteoarthritis Outcome Score (0-100; higher=better)</td></tr><tr><td></td><td>Quality of life</td><td>48.7 (17.5)</td><td>46.9 (13.6)</td></tr></tbody></table></table-wrap>"
+    }
+  ],
+  "source": {
+    "database": "copied-live-fixture",
+    "retrieval_rank": null,
+    "retrieval_score": null,
+    "raw_source_url": null,
+    "raw_record_id": "PMC7367519"
+  },
+  "fixture_provenance": {
+    "copy_scope": "target-column excerpt copied from article Table 2: caption, scale heading, 13-week arm headers, means, SDs, and timepoint-specific totals",
+    "omitted_as_out_of_scope": "baseline, 26-week, 39-week, and adjusted mean-change columns",
+    "benchmark_imported_at_runtime": false
+  }
+}

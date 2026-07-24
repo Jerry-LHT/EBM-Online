@@ -2,41 +2,69 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
-from ebm_backend.online_pipeline.domain.article import CleanedArticle
-from ebm_backend.online_pipeline.domain.grade import GradeResult
-from ebm_backend.online_pipeline.domain.meta_analysis import MetaAnalysisResultPackage
-from ebm_backend.online_pipeline.domain.question import QuestionPICO
-from ebm_backend.online_pipeline.domain.risk_of_bias import RiskOfBiasAssessment
-from ebm_backend.online_pipeline.domain.screening import ScreeningCriteria
-from ebm_backend.online_pipeline.domain.study_characteristics import StudyPIOCharacteristics
+from ebm_backend.online_pipeline.domain.grade import (
+    GRADEImprecisionInput,
+    GRADEIndirectnessInput,
+    GRADEInconsistencyInput,
+    GRADERiskOfBiasInput,
+)
 
 
-class MetaAnalysisPort(Protocol):
+class SynthesisPlanningPort(Protocol):
     def run(
         self,
         *,
-        review_id: str,
-        question_text: str,
-        question_pico: QuestionPICO,
-        included_studies: list[str],
-        articles: list[CleanedArticle],
-        study_characteristics: list[StudyPIOCharacteristics],
-    ) -> MetaAnalysisResultPackage:
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
         ...
 
 
-class GradeAssessmentPort(Protocol):
+
+class StudyEvidencePort(Protocol):
     def run(
         self,
         *,
         review_id: str,
-        question_text: str,
-        question_pico: QuestionPICO,
-        screening_criteria: ScreeningCriteria,
-        study_characteristics: list[StudyPIOCharacteristics],
-        risk_of_bias: list[RiskOfBiasAssessment],
-        meta_analysis_result: MetaAnalysisResultPackage,
-    ) -> GradeResult:
+        targets: list[dict[str, Any]],
+        study_id: str,
+        article: dict[str, Any],
+        plan_hash: str,
+    ) -> dict[str, Any]:
+        ...
+
+
+class AnalysisMethodsPort(Protocol):
+    def run(self, *, instance: dict[str, Any]) -> list[dict[str, Any]]:
+        ...
+
+
+class SubgroupAnalysisPort(Protocol):
+    def run(self, *, instances: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        ...
+
+
+class OverallEstimatesPort(Protocol):
+    def run(self, *, instance: dict[str, Any]) -> dict[str, Any]:
+        ...
+
+
+class GRADERiskOfBiasPort(Protocol):
+    def run(self, *, grade_input: GRADERiskOfBiasInput) -> dict[str, Any]:
+        ...
+
+
+class GRADEInconsistencyPort(Protocol):
+    def run(self, *, grade_input: GRADEInconsistencyInput) -> dict[str, Any]:
+        ...
+
+
+class GRADEIndirectnessPort(Protocol):
+    def run(self, *, grade_input: GRADEIndirectnessInput) -> dict[str, Any]:
+        ...
+
+
+class GRADEImprecisionPort(Protocol):
+    def run(self, *, grade_input: GRADEImprecisionInput) -> dict[str, Any]:
         ...

@@ -1,0 +1,55 @@
+Evaluate whether the outcome assessor was blinded to allocation, and whether
+the outcome measurement could be influenced by lack of blinding.
+
+First identify who assessed the outcomes in this study: patient self-report,
+clinician judgement, independent assessor, blinded coder, lab/imaging system,
+or chart abstractor.
+
+Important: the key question is whether knowledge of allocation could bias the
+measurement of the outcome. Consider the nature of the outcome:
+- Objective outcomes (lab values, mortality, imaging) are hard to bias even
+  when unblinded
+- Subjective outcomes (pain, quality of life, satisfaction, clinician scales)
+  are easily biased
+
+Worst-outcome rule: RoB is judged at the level of the most vulnerable outcome,
+not averaged across the outcome set. If the study reports a mix of objective
+and subjective/patient-reported outcomes, and the subjective outcomes are
+unblinded or the patient is unblinded and is the assessor, the overall
+judgement is High risk even if the objective outcomes alone would be Low.
+
+Examples that are High risk:
+- Study reports both mortality and a self-report quality-of-life questionnaire,
+  and participants are not blinded
+- Outcome assessors are not blinded and any clinician-rated scale, symptom
+  score, or patient-reported measure is among the outcomes
+- Patient self-report outcomes when participants are not blinded
+
+Low risk:
+- Outcome assessor explicitly blinded and blinding unlikely to be broken
+- Or assessor unblinded but all outcomes are objective and measurement cannot
+  be influenced. This requires that there are no subjective outcomes in the mix.
+
+High risk - any of:
+- Assessor unblinded or likely unblinded and at least one outcome is subjective
+  or judgement-dependent
+- Patient self-report outcomes and participants are not blinded
+- Mix of objective and subjective outcomes with no blinding of assessor for
+  the subjective ones
+
+Unclear risk:
+- Does not state whether outcome assessors were blinded and outcomes are
+  entirely objective so blinding may not matter
+- Only says "double blind" without clarifying whether this includes outcome
+  assessment, and outcome types cannot be inferred
+- No information about outcome assessment blinding and outcome types unclear
+
+Common mistakes to avoid:
+- Do not average across outcome types. One unblinded subjective outcome makes
+  the whole domain High risk.
+- Patient self-report outcomes: the patient is the assessor. If participants
+  are not blinded and outcomes are self-reported -> High risk.
+- "Objective" does not mean "unbiasable". Blood pressure measured by an
+  unblinded clinician who decides when to stop measuring may be biased.
+- Lab values measured by automated analyzer are Low risk for that outcome only;
+  if other subjective outcomes exist, judge the domain on the subjective ones.

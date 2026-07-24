@@ -1,0 +1,1 @@
+You are extracting the GRADE risk-of-bias judgement for one Summary of Findings row. This diagnostic mode includes SoF context and may include author downgrade rationales. Return exactly one JSON object and no prose outside JSON.

@@ -1,0 +1,14 @@
+Stage: high-recall pre-screening before full-text eligibility assessment.
+
+Screening criteria:
+{criteria}
+
+Frozen synthesis targets (these describe what the review intends to synthesize; do not assess numeric availability at this stage):
+{targets}
+
+Candidate article evidence:
+{evidence}
+
+Decide "exclude" only when the supplied evidence explicitly establishes a decisive mismatch in study design/report type, population, intervention, or comparator. Missing detail, an unreported outcome, or absence of numeric results in this bounded evidence is not an exclusion reason: decide "advance" so the precise stage can inspect targeted full text and raw tables. Do not calculate or extract result values.
+
+Return a concise reason and short verbatim evidence spans. Evidence spans must be copied from the supplied evidence; do not emit source IDs.

@@ -17,10 +17,9 @@ from benchmark.online_pipeline.grade.indirectness.evaluation.input_adapter impor
 from benchmark.online_pipeline.grade.indirectness.evaluation.io import load_dataset
 from benchmark.online_pipeline.grade.indirectness.evaluation.metrics import build_comparisons, evaluate_predictions
 from benchmark.online_pipeline.shared.jsonl import append_jsonl, read_jsonl, write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
+from benchmark.online_pipeline.grade.method_adapter import load_grade_domain_benchmark_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
-from ebm_backend.online_pipeline.infrastructure.methods.grade.loader import get_grade_domain_method
 
 
 MODULE_NAME = "grade"
@@ -159,7 +158,7 @@ def _predict(
             "domain": instance["domain"],
             "judgement": gold.get("judgement") or {},
         }
-    method_obj = method_obj or load_method(method, default_module=MODULE_NAME)
+    method_obj = method_obj or load_grade_domain_benchmark_method("indirectness", method)
     method_instance = build_method_instance(instance, input_policy=input_policy)
     output = _run_method_instance(method_obj=method_obj, method_instance=method_instance)
     return {
@@ -206,10 +205,7 @@ def _run_method_instance(*, method_obj: Any, method_instance: dict[str, Any]) ->
 
 
 def _load_indirectness_method(method: str) -> Any:
-    prefix = "grade.indirectness."
-    if method.startswith(prefix):
-        return get_grade_domain_method("indirectness", method.removeprefix(prefix))
-    return load_method(method, default_module=MODULE_NAME)
+    return load_grade_domain_benchmark_method("indirectness", method)
 
 
 def _predict_all(

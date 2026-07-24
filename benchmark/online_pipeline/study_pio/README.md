@@ -127,3 +127,16 @@ PYTHONPATH=backend/src:. python benchmark/online_pipeline/benchmark.py run \
 judge 会比较 study-level `population`、`intervention_comparator` 和 `outcomes` 的 semantic claims。每次 run 会实时写入 `judge_matches.jsonl`，中断后可以通过 `--resume` 继续。
 
 `--judge-mode normalized` 保留用于本地快速测试和 debug，但不是 Study PIO 的主评估方式。
+
+当前正式预测 method：
+
+```text
+study_pio.extraction_study_pico_slotwise_llm
+```
+
+历史 spec `study_pio.method_llm` 由 benchmark adapter 映射到同一个正式 method。旧 `method_rule` 不属于维护
+源码；本地快照仅可放在被 Git 忽略的 `archive/` 中。
+
+预测 runner 使用 `--workers` 对相互独立的 benchmark instances 做有界并发。每个 instance 调用
+`RunStudyPIO(max_workers=1)`，避免与 runner 的 instance-level 并发形成嵌套线程池；输出与 artifacts 仍按
+现有 runner 规则写入。

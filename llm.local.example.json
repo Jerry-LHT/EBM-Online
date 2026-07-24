@@ -4,5 +4,6 @@
   "model": "gpt-5.4-mini",
   "api_mode": "responses",
   "timeout_seconds": 180,
-  "temperature": 0
+  "context_window_tokens": 128000,
+  "screening_input_token_budget": 48000
 }

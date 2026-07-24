@@ -45,6 +45,7 @@ htmlcov/
 # Runtime artifacts
 logs/*.log
 archive/
+.runtime/
 
 # Benchmark generated artifacts
 benchmark/online_pipeline/*/runs/

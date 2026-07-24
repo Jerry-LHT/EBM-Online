@@ -11,6 +11,15 @@
 
 模块级 builder 仍从同一套冻结 raw/intermediate data 构建四个 subtasks，确保它们的 source material 一致。
 
+既有 v2 datasets 的 `candidate_id` 是 benchmark cleaning/evaluation identity。Backend runtime 只在 article-local
+candidate 与 resolution provenance 中保留 candidate IDs；final analysis setting 与 estimates 不使用它。
+Subtask 4/5 production adapter 负责在评测边界补回 legacy ID。
+
+既有 Subtask 3–5 datasets 早于 backend 的 continuous endpoint/change 与 SMD direction-alignment
+契约。Production benchmark adapter 会把这些历史 continuous rows 映射为已经对齐的
+`post_intervention` 结果并使用 multiplier `+1`。该兼容只存在于 benchmark 边界；真实 backend workflow
+必须从 frozen plan、Subtask 2 与 Candidate Resolution 产生对应 metadata。
+
 ## 1. 数据来源
 
 v2 source 冻结在：
@@ -179,6 +188,10 @@ PYTHONPATH=backend/src:. python benchmark/online_pipeline/benchmark.py build \
 ## 5. 评估
 
 评估命令由各 subtask README 维护。结果写入各 subtask 的 `runs/` 目录。
+
+历史 Subtask 3–5 dataset 仍使用 `study_result_rows`。Production adapter 在 benchmark 边界将这些 rows
+转换为 backend 当前的 `meta_analysis_data_rows`，补充稳定 `data_row_id` 与 family ID；backend runtime
+不读取 benchmark 字段。Subtask 4/5 现有指标仍只评分 pooled estimates，单研究 weight 暂未增加独立 metric。
 
 ## 6. 历史目录策略
 

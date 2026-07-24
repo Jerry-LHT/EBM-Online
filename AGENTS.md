@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This branch contains the Online EBM workflow benchmark and a module-level Python backend. Backend source lives under `backend/src/ebm_backend/online_pipeline/` and follows a DDD-style split: `domain/` for dataclasses and serialization contracts, `application/` for ports and runners, `infrastructure/` for method implementations, registries, and LLM clients, and `interfaces/api/` for FastAPI routes and schemas. Benchmark code and datasets live in `benchmark/online_pipeline/`, organized by module such as `q2pico/`, `study_screening/`, `study_pio/`, `risk_of_bias/`, `meta_analysis/`, and `grade/`. Shared benchmark utilities are in `benchmark/online_pipeline/shared/`. Unit tests are under `tests/unit/`; maintained workflow docs are in `docs/`.
+This branch contains the Online EBM workflow benchmark and a module-level Python backend. Backend source lives under `backend/src/ebm_backend/online_pipeline/` and follows a DDD-style split: `domain/` for stable workflow entities and serialization contracts, `application/` for business ports and use-case orchestration, `infrastructure/` for concrete method adapters, business factories, provider clients, prompt assets, and technical integrations, and `interfaces/api/` for FastAPI routes, schemas, and dependency composition. Benchmark code and datasets live in `benchmark/online_pipeline/`, organized by module such as `q2pico/`, `study_screening/`, `study_pio/`, `risk_of_bias/`, `meta_analysis/`, and `grade/`. Shared benchmark utilities are in `benchmark/online_pipeline/shared/`. Unit tests are under `tests/unit/`; maintained workflow docs are in `docs/`.
 
 ## Build, Test, and Development Commands
 
@@ -24,7 +24,7 @@ PYTHONPATH=backend/src:. uvicorn ebm_backend.online_pipeline.interfaces.api.main
 Run tests:
 
 ```bash
-PYTHONPATH=backend/src:. pytest -q
+PYTHONPATH=backend/src:. pytest -q tests/unit tests/integration
 PYTHONPATH=backend/src:. pytest tests/unit/infrastructure/test_llm_config.py -q
 ```
 
@@ -37,18 +37,63 @@ PYTHONPATH=backend/src:. python benchmark/online_pipeline/benchmark.py run --mod
 
 ## Coding Style & Naming Conventions
 
-Use Python 3.10-3.12, four-space indentation, type hints for public interfaces, and clear dataclass/domain object boundaries. Keep dependencies flowing through the documented layers: `interfaces -> application -> domain`, with concrete adapters in `infrastructure`. Name tests `test_*.py`, benchmark run IDs descriptively, and method packages by module/domain, for example `method_onestep_llm` or `subtask3_analysis_methods`.
+Use Python 3.11, four-space indentation, type hints for public interfaces, and clear dataclass/domain object boundaries. Keep dependencies flowing through the documented layers, and inject concrete infrastructure adapters at the interface composition root. Name tests `test_*.py`, benchmark run IDs descriptively, and method packages by module/domain, for example `method_onestep_llm` or `subtask3_analysis_methods`.
 
 ## Backend Service Architecture
 
 The backend is the primary implementation surface for the online EBM workflow. Keep architectural responsibilities explicit:
 
 - `domain/` defines stable workflow entities, value objects, serialization-facing dataclasses, and business contracts.
-- `application/` defines use cases, orchestration, parameter passing, and ports; it coordinates workflow steps but does not implement concrete LLM or heuristic methods.
-- `infrastructure/` implements concrete methods, registries, resolvers, LLM clients, and adapters that satisfy application-layer ports.
-- `interfaces/api/` exposes backend capabilities over HTTP and should remain a thin translation layer over application use cases.
+- `application/` defines use cases, business orchestration, parameter passing, and ports; it coordinates workflow steps but does not implement concrete LLM, provider, retrieval, or heuristic methods.
+- `infrastructure/` implements concrete method adapters, provider-specific query compilers and clients, business factories, LLM integrations, prompt assets, and other technical capabilities.
+- `interfaces/api/` exposes backend capabilities over HTTP, remains a thin translation layer over application use cases, and acts as the composition root that injects concrete infrastructure adapters.
 
-Dependency direction must remain one-way: `interfaces -> application -> domain`, with concrete implementations injected from `infrastructure`. Do not make backend runtime behavior depend on benchmark code or test code.
+Dependency direction must remain explicit:
+
+- `domain` must not depend on `application`, `infrastructure`, `interfaces`, `benchmark`, or `tests`;
+- `application` may depend on `domain` and its own ports, but must not depend on `infrastructure`, `interfaces`, `benchmark`, or `tests`;
+- `infrastructure` may depend on `domain` and external technical libraries, but must not import application use cases, interfaces, benchmark code, or tests;
+- concrete infrastructure adapters should satisfy application ports structurally and do not need to inherit or import application `Protocol` types solely for conformance;
+- `interfaces/api/dependencies.py` may import both application use cases and infrastructure factories because it is the backend composition root.
+
+Do not make backend runtime behavior depend on benchmark code or test code. Do not reintroduce a cross-business method registry, resolver, module facade, or service-locator abstraction. Each application use case must receive already-constructed business port adapters.
+
+## Backend Orchestration And Technical Pipelines
+
+Place orchestration according to the meaning of the workflow, not merely according to the number of calls:
+
+- `application` owns EBM business steps, coordination of multiple replaceable capabilities or sources, cross-step parameter passing, concurrency and failure policy, deterministic output ordering, and domain-rule invocation;
+- `infrastructure` may coordinate the provider-specific technical operations required for one concrete adapter to fulfill its port, such as query compilation, HTTP requests, retries, rate limiting, identifier conversion, response parsing, XML cleaning, or a provider-local enrichment sequence;
+- infrastructure code must not call back into an application use case to coordinate a business workflow;
+- if a flow expresses an EBM stage or coordinates multiple replaceable business capabilities, put it in `application`; if it only fulfills one concrete provider adapter's technical contract, keep it in `infrastructure`.
+
+Examples: Study Screening criteria planning plus article screening is application orchestration. PubMed-specific MeSH enrichment, PubMed query compilation, NCBI calls, PMID-to-PMCID conversion, and PMC XML cleaning may remain inside the PubMed infrastructure adapter.
+
+## Backend Method Packaging And Factories
+
+Organize concrete methods by business capability and isolate each implementation:
+
+```text
+infrastructure/methods/<business>/
+  factory.py
+  <concrete_method>/
+    method.py
+    prompts/
+    provider-specific helpers
+```
+
+- each concrete method must have its own directory;
+- prompts must live under the method that owns them, normally in a local `prompts/` directory;
+- method-local helpers, schemas, and provider code must not be scattered across the business root;
+- the business root may contain its factory and genuinely shared technical components used by multiple concrete methods;
+- do not add an infrastructure-root coordinator that calls an application use case;
+- each business uses its own factory; do not add methods to a cross-business registry;
+- factories resolve only the adapters currently supported by that business;
+- method names, source names, or other adapter-selection strings are handled by the interface composition root or a module-specific benchmark adapter, not by application use cases;
+- product-facing APIs should prefer business concepts such as source names over internal implementation names;
+- do not create empty provider packages, placeholder methods, speculative ports, or unused abstractions for capabilities that have not been requested.
+
+New and refactored backend code must follow these rules. Existing Meta-analysis or GRADE infrastructure coordinators that have not yet been migrated are known technical debt, not precedents for new code. Align with the user before changing their behavior.
 
 ## Backend And Benchmark Relationship
 
@@ -89,8 +134,8 @@ The orchestration relationship between backend, benchmark, and tests must remain
 
 Allowed dependency and call directions:
 
-- `interfaces/api` may call `application`, which resolves concrete implementations from `infrastructure`.
-- `benchmark` may call backend methods, benchmark adapters, evaluators, and reporting utilities.
+- `interfaces/api` may construct application use cases and inject concrete adapters from module-specific infrastructure factories.
+- `benchmark` may call application use cases, backend business factories, public backend method adapters, module-specific benchmark adapters, evaluators, and reporting utilities.
 - `tests` may call backend code directly, and may call benchmark-side public evaluation logic when testing benchmark behavior.
 
 Disallowed or discouraged directions:
@@ -98,6 +143,7 @@ Disallowed or discouraged directions:
 - `backend` must not depend on `benchmark` or `tests`;
 - `benchmark` must not depend on `tests`;
 - tests must not become the place where product logic is first implemented.
+- benchmark code must not depend on a generic backend method registry or bypass required application orchestration with an incompatible concrete-method call.
 
 Responsibility split:
 
@@ -106,6 +152,38 @@ Responsibility split:
 - Tests own verification of correctness, regressions, boundary conditions, and controlled live smoke checks.
 
 If a benchmark run requires output reshaping or interpretation that is specific to the benchmark, prefer benchmark-side adaptation. Do not blur the boundary by embedding benchmark-specific evaluation assumptions into backend runtime contracts unless explicitly approved.
+
+## Scope Alignment And Documentation Synchronization
+
+Discussion, investigation, and implementation authorization are distinct. A question about how a future database, cache, provider, agent, storage layer, or workflow might be added is not approval to create code, ports, schemas, placeholders, or maintained documentation for that capability.
+
+Repository-wide modification authorization is explicit: debugging, analysis, code review, artifact inspection, and test execution do not authorize implementation changes. Before changing code, prompts, schemas, routing, filters, evaluation behavior, test expectations, or maintained documentation, first describe the concrete issue and proposed change to the user and obtain explicit approval for that class of change. A broad request to investigate, debug, integrate, or make a workflow run does not waive this requirement. If a newly discovered issue blocks the approved task, stop and align rather than modifying behavior first and reporting afterward.
+
+- Do not implement or document speculative future requirements without explicit user alignment.
+- When the user asks only for an explanation or design discussion, answer and stop; do not mutate the repository.
+- Before adding a new provider, persistence layer, cache, routing mechanism, or agent pattern, align on the real use case, business semantics, failure policy, and required contract.
+- Prefer the smallest implementation that satisfies the current approved requirement. Add a second provider or generalized mechanism when a real second implementation is requested, not merely because it may exist later.
+- When debugging reveals a separate issue, follow the repository's alignment rules: report it first unless it blocks the already-approved change.
+
+Keep maintained documentation synchronized with approved, implemented behavior:
+
+- update `docs/contracts/<module>.md` when stable inputs, outputs, invariants, or failure semantics change;
+- update `docs/implementation/<module>.md` when real directory structure, call flow, provider behavior, or method wiring changes;
+- update `docs/workflow_v3.md` when cross-module workflow semantics or handoff contracts change;
+- update `docs/implementation/backend-framework.md` and `backend/README.md` when global layering, composition, or development conventions change;
+- update the relevant benchmark documentation when benchmark method loading, runner behavior, datasets, metrics, or artifacts change;
+- documentation must distinguish current behavior, known limitations, and approved next steps; speculative ideas should not be written as maintained architecture.
+
+## Backend Concurrency Policy
+
+Add concurrency only when there are at least two real, semantically independent execution units and a concrete latency need. Do not introduce a thread pool merely to prepare for a hypothetical future provider.
+
+- concurrency must have an explicit bound;
+- outputs must preserve deterministic business ordering;
+- partial-failure versus whole-run failure semantics must be explicit;
+- provider-specific rate limits and retry limits remain in force under concurrency;
+- application owns concurrency across business capabilities or retrieval sources;
+- infrastructure may use bounded concurrency only inside one adapter for technically independent provider operations that do not alter business semantics.
 
 ## Meta-analysis Method Constraints
 
@@ -128,8 +206,10 @@ When developing meta-analysis extraction methods in this repository, follow thes
 15. Traceability and observability: every non-trivial agent stage should produce inspectable debug artifacts containing stage input summaries, model outputs, tool calls, warnings, timing, retry counts, source ids, and final state transitions. Prediction rows should stay compact; full prompts, raw sources, and long traces belong in debug or run artifacts. A method change is not ready for benchmark iteration if its failures cannot be classified from artifacts.
 16. Evaluation before optimization: do not optimize prompts, routing, batching, cache strategy, or agent structure based only on anecdotal bad cases. First define the expected improvement and inspect metrics or debug categories that can falsify the change, such as recall, field binding, denominator accuracy, context truncation, LLM error rate, runtime, and per-stage failure taxonomy. If a change improves speed but reduces auditability or source coverage, record the tradeoff explicitly before adopting it.
 17. Communication of domain terminology: when discussing EBM concepts, psychiatric scales, statistical measures, table labels, or other domain-specific terms with the user, do not assume the term is self-explanatory. Add a short Chinese explanation, translation, or note inline when it materially helps understanding, especially during debugging, case analysis, and design discussion.
-18. Subtask 2 candidate objective: for meta-analysis Subtask 2, the workflow/review setting passed into a method can be broader than the article-local result setting. Ambiguous outputs are acceptable when the article contains multiple plausible source-local candidates under the broader setting. The primary candidate-recall goal is that the returned candidate/result items include the gold-relevant article-local result and its numeric values when those values are supported by the provided article evidence. Do not force a single final row merely to satisfy a benchmark target when the input setting is genuinely broad.
+18. Study-evidence candidate objective: the workflow/review setting passed into a method can be broader than the article-local result setting. Ambiguous outputs are acceptable when an article contains multiple plausible source-local candidates. The primary recall goal is that candidates preserve the relevant article-local result and all directly reported or deterministically derivable numeric evidence supported by the article. Do not force a single final row merely to satisfy a benchmark target when the input setting is genuinely broad.
 19. Alignment before behavior changes: during Subtask 2 method design, debugging, prompt review, and case analysis, do not change code, prompts, schemas, routing, filters, or evaluation behavior unless that exact class of change has already been aligned with the user. If a new issue is found while investigating an approved change, report the issue and proposed fix first. Only perform read-only analysis, artifact inspection, and already-approved commands until the user agrees to the behavior change.
+20. Candidate and supporting-evidence boundary: an article-local result candidate must be discovered from one current raw table source, including its caption, headers, rows, and footnotes. Candidate discovery must not silently merge another table or article prose into that candidate. Separate, need-scoped calls may extract typed supporting materials from other selected tables or relevant article sections, such as arm sample sizes, participant flow, attrition, scale definitions, or explicitly reported uncertainty statistics. Cross-source materials must retain their own source and semantic scope and may contribute to a final result only through deterministic compatibility and provenance gates. Article prose must not be presented as if it came from the candidate table.
+21. Intermediate evidence and calculations: follow Cochrane's maximal-use-of-data principle by retaining potentially useful typed numeric materials, including counts, percentages, sample sizes, means, SDs, SEs, confidence intervals, test statistics, P values, and effect estimates when reported. LLMs classify the material type, statistical scope, result frame, arm, outcome, timepoint, and source; they do not choose arbitrary formulas or perform final arithmetic. Only versioned deterministic calculators with documented assumptions may derive required fields. A randomized or baseline sample size is not an analyzed denominator unless separate evidence establishes compatible outcome coverage and no contradictory attrition or exclusion.
 
 ## Real-Workflow Priority
 
@@ -137,11 +217,11 @@ When benchmark datasets and real EBM workflow needs diverge, prioritize the real
 
 ## Testing Guidelines
 
-Use `pytest`. Add focused unit tests for config, schema, resolver, serialization, and method adapter changes. For new or changed benchmark methods, also run the relevant benchmark smoke split and confirm a run directory plus metrics are written. Keep backend unit tests separate from benchmark evaluation code.
+Use `pytest`. Add focused unit tests for configuration, schemas, domain serialization, application use-case delegation, business factories, provider clients, and method or benchmark adapters. Unit tests must use fakes for external providers. Keep live provider and live LLM tests explicitly opt-in. For new or changed benchmark methods, also run the relevant benchmark smoke split and confirm a run directory plus metrics are written. Keep backend unit tests separate from benchmark evaluation code.
 
 ## Commit & Pull Request Guidelines
 
-Recent history uses short, descriptive commits such as `Refactor backend and benchmark structure` and `experiment: analysis setting and meta-extract`. Prefer imperative, scoped messages (`backend: add resolver test`, `benchmark: update q2pico metrics`). PRs should describe the touched module, list test or benchmark commands run, note dataset or config changes, and link related issues or workflow docs when relevant.
+Recent history uses short, descriptive commits such as `Refactor backend and benchmark structure` and `experiment: analysis setting and meta-extract`. Prefer imperative, scoped messages (`backend: add factory test`, `benchmark: update q2pico metrics`). PRs should describe the touched module, list test or benchmark commands run, note dataset or config changes, and link related issues or workflow docs when relevant.
 
 ## Security & Configuration Tips
 

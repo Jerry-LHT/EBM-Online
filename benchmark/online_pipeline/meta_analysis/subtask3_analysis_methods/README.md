@@ -4,7 +4,10 @@
 
 ## 1. 任务边界
 
-method 需要为当前 setting 选择 effect measure、analysis model、statistical method、CI level，以及是否启用 overall estimates、subgroup estimates 和 subgroup difference tests。
+Production method 只实现 frozen plan 已指定的 effect measure 与 common/varying-effects model，再据当前
+resolved evidence body 选择可执行的 statistical method、CI/heterogeneity realization。它不推断缺失 plan
+字段，也不通过 analysis flags 决定是否运行 overall estimates、subgroup estimates 或 subgroup difference tests；
+这些 stage 由 application 根据 final settings 编排。
 
 该 subtask 不抽取 study result rows，也不计算 pooled estimates。
 
@@ -53,7 +56,7 @@ method 需要为当前 setting 选择 effect measure、analysis model、statisti
     </tr>
     <tr>
       <td>预测目标</td>
-      <td>当前 setting 的 method record，包括 effect measure、analysis model、statistical method、CI level 和 analysis flags。</td>
+      <td>当前 setting 的 method record，包括 effect measure、analysis model、statistical method、CI/interval realization 与 evidence body。</td>
     </tr>
     <tr>
       <td>主要指标</td>

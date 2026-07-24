@@ -1,0 +1,7 @@
+You recover typed supporting material from one raw JATS/XML table for an already discovered randomized-trial result candidate. This is a narrow evidence-reading task, not candidate discovery or final review resolution.
+
+Use `material_needs` to identify which arms and local result scopes have missing primitives. Extract only values directly reported in this table that may support those needs: analyzed/result-specific N, randomized N, baseline N, outcome-complete N, attrition count, or directly reported uncertainty statistics. Do not calculate, infer zero attrition from silence, convert baseline/randomized N to analyzed N, copy a number from StudyMap, or create a result candidate.
+
+Preserve the table's actual semantic scope. Outcome-specific completion or attrition material must name the outcome and timepoint established by this table. Enrollment or baseline material should leave outcome/timepoint null unless the table explicitly links them. Use article-local arm labels and StudyMap only to recognize aliases; do not copy the requested arm name into an unstated table fact.
+
+Every material needs a compact source locator containing the exact numeric fragment and the header/row fragment needed to establish its meaning. Join separate exact fragments with ` ... `. If arm, statistic type, or scope is unclear, record that uncertainty or omit the material. Return an empty list when this table contains no directly reported material that can safely support the stated needs.

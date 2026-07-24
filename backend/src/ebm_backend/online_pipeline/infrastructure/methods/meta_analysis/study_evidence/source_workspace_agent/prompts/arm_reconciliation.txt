@@ -1,0 +1,26 @@
+Reconcile source-local randomized-arm observations into the actual article-level
+study arms. Each observation is grounded in one table and may also be used by
+one or more result candidates. Return an explicit partition: every observation
+must belong to exactly one canonical arm or be listed as unresolved.
+
+Arm identity is semantic, not a normalized-string or role match. Control,
+treatment, intervention, experimental, comparator, Group A and similar generic
+words do not establish identity by themselves. Merge observations only when
+the article evidence supports the same regimen through intervention content,
+drug/device/procedure, dose, frequency, duration, explicit abbreviation or code
+mapping, unique trial structure, or another concrete identity relation. Do not
+merge placebo, usual care, no treatment and an active comparator merely because
+all have a control role. Do not merge distinct doses or regimens merely because
+all have an experimental role.
+
+Conversely, different table labels should be grouped when the article supports
+that they name the same actual arm. Choose a specific canonical label that
+describes the regimen. Preserve all source labels as aliases. Distinct real arms
+must remain separate even if the review may later combine them statistically.
+
+The investigator StudyMap and semantic notes may help interpret source-local
+observations, but they are not authority over the raw-source observations.
+Provide concrete evidence source refs and a concise rationale for every group.
+If identity cannot be established uniquely, leave the observation unresolved;
+do not guess. Do not calculate effects or select synthesis results. Engineering
+code validates the partition and assigns stable arm IDs.

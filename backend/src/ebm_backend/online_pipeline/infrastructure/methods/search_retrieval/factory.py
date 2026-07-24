@@ -2,34 +2,34 @@
 
 from __future__ import annotations
 
-from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.mesh_mapping.official.method import (
-    build_method as build_official_mesh_mapping_method,
-)
 from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.pubmed_pmc.method import (
     build_method as build_pubmed_pmc_method,
 )
-from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.textword_expansion.official.method import (
-    build_method as build_official_textword_expansion_method,
+from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.pubmed_pmc.cache import (
+    PubMedPmcFileCache,
 )
 
 
-def build_search_retrieval_method(*, method_name: str):
-    if method_name != "pubmed_pmc":
-        raise ValueError(f"Unknown method '{method_name}' for module 'search_retrieval'")
-    return build_pubmed_pmc_method()
+def build_search_retrieval_source(
+    *,
+    source_name: str,
+    cache: PubMedPmcFileCache | None = None,
+):
+    if source_name != "pubmed":
+        raise ValueError(f"Unknown search retrieval source '{source_name}'")
+    return build_pubmed_pmc_method(cache=cache)
 
 
-def build_search_mesh_mapping_method(*, method_name: str | None):
-    if method_name is None:
-        return None
-    if method_name != "official":
-        raise ValueError(f"Unknown method '{method_name}' for module 'search_retrieval_mesh_mapping'")
-    return build_official_mesh_mapping_method()
-
-
-def build_search_textword_expansion_method(*, method_name: str | None):
-    if method_name is None:
-        return None
-    if method_name != "official":
-        raise ValueError(f"Unknown method '{method_name}' for module 'search_retrieval_textword_expansion'")
-    return build_official_textword_expansion_method()
+def build_search_retrieval_sources(
+    *,
+    source_names: list[str],
+    cache: PubMedPmcFileCache | None = None,
+):
+    if not source_names:
+        raise ValueError("At least one search retrieval source is required")
+    if len(set(source_names)) != len(source_names):
+        raise ValueError("Search retrieval source names must be unique")
+    return tuple(
+        build_search_retrieval_source(source_name=source_name, cache=cache)
+        for source_name in source_names
+    )

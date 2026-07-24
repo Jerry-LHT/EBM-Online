@@ -1,0 +1,35 @@
+{
+  "fixture_source": "Copied from benchmark cochrane_meta_v2 Subtask 5 smoke case CD006689::2::9; tests do not import benchmark code.",
+  "setting": {
+    "setting_id": "setting::CD006689::2::9::overall",
+    "setting_family_id": "setting-family::CD006689::2::9",
+    "candidate_id": "candidate::CD006689::2::9",
+    "comparison": {"experimental": "Mefloquine plus cotrimoxazole", "comparator": "cotrimoxazole"},
+    "outcome": {"label": "birth weight", "measure": "grams"},
+    "timepoint": {"label": null},
+    "subgroup": {"factor": null, "level": null},
+    "data_type": "Continuous",
+    "source_context": {"setting_definition": {"scale_compatibility": "same_scale", "clinical_model_assumption": "common_effect"}}
+  },
+  "study_result_rows": [
+    {
+      "row_id": "row::CD006689::95",
+      "setting_id": "setting::CD006689::2::9::overall",
+      "study_id": "Denoeud-Ndam 2014a",
+      "extraction_status": "extracted",
+      "data_type": "Continuous",
+      "subgroup": {"factor": null, "level": null},
+      "result_data": {"experimental_mean": 2856.0, "experimental_sd": 454.0, "experimental_total": 119, "control_mean": 2889.0, "control_sd": 478.0, "control_total": 126}
+    },
+    {
+      "row_id": "row::CD006689::96",
+      "setting_id": "setting::CD006689::2::9::overall",
+      "study_id": "González 2014",
+      "extraction_status": "extracted",
+      "data_type": "Continuous",
+      "subgroup": {"factor": null, "level": null},
+      "result_data": {"experimental_mean": 3036.3, "experimental_sd": 570.6, "experimental_total": 489, "control_mean": 3059.3, "control_sd": 575.5, "control_total": 486}
+    }
+  ],
+  "official_fixed_effect": {"effect_value": -25.753674, "ci_lower": -86.994207, "ci_upper": 35.486859}
+}

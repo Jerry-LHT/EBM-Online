@@ -10,15 +10,15 @@
 
 ### 1.1 Workflow Goal
 
-Online EBM workflow 从用户输入的临床问题开始，经过问题结构化、在线检索、文献筛选、纳入研究特征抽取、Risk of Bias 判断、Meta Analysis 和 Four-domain GRADE Assessment，最终输出每个 SoF row 对应的四个 GRADE downgrade domain judgements。
+Online EBM workflow 从用户输入的临床问题开始，经过问题结构化、在线检索、文献筛选、纳入研究特征抽取、Risk of Bias 判断、Meta Analysis 和 Four-domain GRADE Assessment，最终输出可供下游消费的紧凑、版本化完整证据链。
 
-当前 workflow 的最终产物是：
+当前产品 API 的最终产物是：
 
 ```text
-SoFRowGRADEAssessment[]
+EvidencePackage
 ```
 
-每个 `SoFRowGRADEAssessment` 对应一个 selected `AnalysisSetting / evidence body`，并包含四个并行 GRADE domain judgements：
+其中每个 `EvidenceUnit` 对应一个 selected `AnalysisSetting / evidence body`，包含结构化 study effects、Meta estimate 和四个并行 GRADE domain judgements：
 
 ```text
 risk_of_bias
@@ -37,13 +37,16 @@ imprecision
 - 只处理 RCT evidence。
 - 当前 workflow 采用 one main RCT = one study 的对象约定，不处理同一研究多报告归并。
 - 当前 Meta Analysis 只支持 `Dichotomous` 和 `Continuous` 两类 outcome data。
+- Meta Synthesis Planning 会把不属于这两类的数据形态记录到 `unsupported_targets`，不得强制转换；
+  如果没有 supported target，则不进入结果抽取、候选消解和统计阶段。
 - 当前 Meta Analysis 主路径仍以 pairwise estimate 为下游目标：一个 experimental arm 对一个 control arm。
-- Subtask 2 可记录 multi-arm shared-control 关系，但不在该阶段拆分或合并 arm；这些 items 必须在 effect calculation 前经过 downstream analysis resolution。cluster RCT、crossover RCT、adjusted contrast-level data、time-to-event、rate、ordinal 或 count outcome 暂不处理。
-- 当前 Risk of Bias Assessment 固定采用 RoB 1 七域框架；这是本 workflow 的固定方法选择。
+- Study Screening 通过必要 criterion 只允许个体随机平行组设计进入下游，并排除 cluster/crossover 等非平行设计。Subtask 2 可记录 multi-arm shared-control 候选，但不在抽取阶段拆分或合并 arm；Candidate Resolution 仅在临床等价性、共享 control identity 与 primitive data 均确认时执行安全合并。Adjusted contrast-level data、time-to-event、rate、ordinal 或 count outcome 暂不处理。
+- 当前 Risk of Bias Assessment 固定采用 RoB 1；默认评估完整七域，也允许显式配置 domain 子集。
 - 当前 GRADE 只覆盖四个 downgrade domains：`risk_of_bias`、`inconsistency`、`indirectness`、`imprecision`。
 - 当前 Four-domain GRADE Assessment 仅对已形成 meta-analysis effect estimate 的 evidence body 输出 judgement。
 - 当前 Search & Article Retrieval 是面向 online workflow 的 question-guided retrieval layer，不等价于完整 systematic review search。
-- 当前不处理 `publication_bias`，也不输出 final five-domain overall certainty label。
+- 当前不处理 `publication_bias`，也不输出 final five-domain overall certainty label；EvidencePackage 明确使用
+  `scope=four_domain_partial_grade` 和 `overall_certainty=null`。
 
 ### 1.3 Core Data Objects
 
@@ -81,8 +84,14 @@ workflow 中的核心数据对象如下：
     <tr>
       <td><code>included_studies</code></td>
       <td>Module 3: Study Screening</td>
-      <td>Modules 4, 5, 6</td>
-      <td>通过筛选进入后续证据分析的 RCT study IDs</td>
+      <td>Modules 4, 5</td>
+      <td>Review eligibility 纳入的 article-level study IDs；不要求当前 Meta 可处理</td>
+    </tr>
+    <tr>
+      <td><code>meta_ready_studies / meta_investigation_studies</code></td>
+      <td>Module 3: Study Screening</td>
+      <td>Module 6</td>
+      <td>存在 canonical raw table 且已就绪或需要 Meta agent 进一步核查的 article-level study IDs</td>
     </tr>
     <tr>
       <td><code>StudyPIOCharacteristics[]</code></td>
@@ -105,7 +114,7 @@ workflow 中的核心数据对象如下：
     <tr>
       <td><code>SoFRowGRADEAssessment[]</code></td>
       <td>Module 7: Four-domain GRADE Assessment</td>
-      <td>workflow output</td>
+      <td><code>EvidencePackage.evidence_units[]</code></td>
       <td>每个 selected SoF row / evidence body 的四个 GRADE domain judgements</td>
     </tr>
   </tbody>
@@ -118,11 +127,30 @@ workflow 包含七个在线模块：
 
 1. `Q2PICO`：将用户自然语言临床问题转换为结构化 `question_pico`。
 2. `Search & Article Retrieval`：根据 `question_pico` 生成在线检索式，检索 RCT 文献，并返回 `CleanedArticle[]`。
-3. `Study Screening`：根据用户问题、question-level PICO 中与 review eligibility 相关的 P/I/C 信息、全局 RCT 约束和候选文章生成 `screening_criteria`，并确定 `included_studies`。
+3. `Study Screening`：生成 criteria 后，先冻结不读取文章结果的 Meta-local synthesis plan，再执行高召回
+   粗筛和定向全文精筛；最终确定 article-level `included_articles`，并独立保留方法学合格但当前 Meta runtime
+   不支持的 articles。`included_studies` 暂为兼容别名。
 4. `Study-level PIO Characteristics Extraction`：从 included studies 的清洗文章中抽取与当前问题相关的 study-level PIO characteristics。
-5. `Risk of Bias Assessment`：对 included RCT studies 进行固定 RoB 1 domains 的 study-level risk-of-bias 判断。
-6. `Meta Analysis`：基于 included studies 定义 `AnalysisSetting`，抽取 study-level result data，并生成 overall/subgroup estimates 和 subgroup difference tests。
+5. `Risk of Bias Assessment`：仅基于 included RCT articles 对配置的 RoB 1 domains 进行 article-level 保守判断，并基于预设 key domains 确定性生成 scoped overall。
+6. `Meta Analysis`：复用 Screening 前已经冻结的 result-blind、Meta-local synthesis plan，从 included articles
+   宽召回 study-level candidates，经 candidate resolution 构造统计数据集并生成 estimates。
 7. `Four-domain GRADE Assessment`：以 `AnalysisSetting / evidence body` 为单位，并行生成四个 GRADE downgrade domain judgements。
+
+当前 application 编排先执行 Module 1–2，再做全文 hard precheck 和可缓存的 content-based article-type
+qualification，然后生成 Screening criteria 与 result-blind synthesis plan并完成 Module 3 的两阶段筛选。
+Review eligibility 与 Meta readiness 独立：所有 Review-included articles 进入 Module 4/5；只有 Meta-ready 或
+需要 Meta investigation 且存在 canonical raw table 的 articles 进入 Module 6。产品 API 不再对已纳入文章做
+科学性 top-N 截断。Module 4、5、6 以最多三个 worker 并发执行；三者全部成功后 Module 7 才运行。任何分支
+失败都会阻止 Module 7，但不会删除其他已成功产物。
+
+完整 workflow 内部保存可审计的 `OnlineEBMWorkflowResult`，包括 question PICO、检索摘要、筛选结果、
+downstream study selection、Study PIO、study-level RoB、完整 Meta-analysis package、GRADE 和 stage records。产品响应将其确定性投影为
+紧凑 `EvidencePackage`，只保留 protocol、数量摘要、纳入 studies 和 evidence-unit 级最终证据，不返回文章
+全文、详细 metadata、Meta candidates、LLM trace 或 stage debug output。
+
+产品 API 为每次完整 workflow 生成唯一 `run_id`，在各 stage 完成后写入本地 checkpoint，并保存最终完整
+证据链。文章全文由 PubMed/PMC provider cache 独立保存，不复制进 workflow result；article-level RoB 1
+成功 domain judgements 可在相同文章证据和方法版本下跨 workflow 复用，overall 仍按本次配置重新计算。
 
 ### 1.5 Overall Workflow Description
 
@@ -143,35 +171,53 @@ workflow 包含七个在线模块：
 
 **Study Screening 与纳入研究集合确定**
 
-1. `Study Screening` 接收 `question_pico` 和候选 `CleanedArticle[]`。
-2. 该模块先生成 `screening_criteria`，再对候选文章进行 include / exclude 判断。
-3. screening 的核心输出是 `included_studies`，即进入后续证据分析的 RCT study IDs。
-4. 当前 workflow 中，review-level study screening 不以目标 outcome 是否已报告作为主要纳入标准；研究即使未报告目标 outcome，也可在 screening 阶段纳入，并在后续模块中判断其是否贡献某个 analysis setting。
-5. 从这一阶段开始，后续模块原则上只围绕 `included_studies` 展开，不再处理被排除的候选文献。
+1. 全文 hard precheck 先处理撤稿和显式年份范围；article-type qualification 只读文章内容，不读取 PubMed
+   Publication Type/MeSH，明确不是 primary RCT results report 才排除。
+2. `Study Screening` 接收 `question_pico` 和剩余 `CleanedArticle[]`，生成 `screening_criteria`。
+3. Meta Synthesis Planning 只读取 question/PICO/criteria 并冻结 targets，不读取候选文章或 observed results。
+4. 粗筛只读取 title、完整 abstract 和少量原始正文 paragraph；只有明确不匹配才排除。
+5. 精筛按 frozen targets 读取原始正文与完整 raw table XML/明确的 XML slice，一次输出正式 eligibility 和
+   target readiness；支持 arm-level binary/continuous 与 direct effect + CI/SE 的 GIV 形态。
+6. `included_articles` 只由 Review eligibility 决定。没有 canonical raw table 只会得到
+   `meta_unavailable_no_readable_table`，仍进入 Study PIO 和 RoB。
+7. 当前尚未完成多个 reports 到真实 RCT study 的归并；后续模块仍使用 article-level study proxy。
 
 **Included Study Appraisal**
 
 1. `Study-level PIO Characteristics Extraction` 基于 `question_pico`、`included_studies` 和对应 `CleanedArticle[]`，抽取每个纳入研究中与当前问题相关的 population、intervention/comparator 和 outcomes 信息。
-2. 该模块输出 `StudyPIOCharacteristics[]`，用于支持 Meta Analysis 的 setting 识别，也用于 GRADE indirectness 判断。
-3. `Risk of Bias Assessment` 基于 `included_studies` 和对应 `CleanedArticle[]`，对每个纳入 RCT study 输出固定 RoB 1 domains 的 study-level judgement。
-4. 该模块输出 `RiskOfBiasAssessment[]`，用于 GRADE risk_of_bias domain 判断。
+2. 该模块输出 `StudyPIOCharacteristics[]`，供后续 GRADE indirectness 判断；Meta Analysis 直接读取问题和清洗文章，不依赖该输出。
+3. 每篇 included article 必须有非空全文 section；每次最多接收 500 个 studies/articles。不同 studies 最多 4 个并发，每个 study 内三个 slot stages 顺序执行且各只 retry 一次。
+4. `Risk of Bias Assessment` 基于 `included_studies`、对应 `CleanedArticle[]` 和 domain config，对每个纳入 RCT study 输出配置的 RoB 1 domain judgements。默认 assessed/key domains 均为完整七域：随机序列、分配隐藏、参与者/人员盲法、结局评估盲法、不完整结局数据、选择性报告和其他偏倚；调用方仍可配置子集。
+5. 所有配置 domain 成功后，模块按 key-domain high > unclear > low 规则确定性生成 structured overall；输出 `RiskOfBiasAssessment[]` 供 GRADE risk_of_bias domain 使用。
 
 **Evidence Synthesis**
 
-1. `Meta Analysis` 接收 `question_pico`、`included_studies`、对应 `CleanedArticle[]`，并可使用 `StudyPIOCharacteristics[]` 作为辅助上下文。
-2. 该模块首先定义可分析的 `AnalysisSetting`，每个 setting 对应一个具体的 population scope、comparison、outcome、timepoint、subgroup 和 data type 组合。
-3. 在每个 setting 下，Meta Analysis 抽取 study-level result data，形成 `StudyResultRow[]`。
-4. 之后模块决定 analysis method，并在可计算时生成 `OverallEstimate`、`SubgroupEstimate` 和 `SubgroupDifferenceTest`。
-5. Module 6 的模块级输出统一打包为 `MetaAnalysisResultPackage`，作为 GRADE 的核心上游输入。
+1. `Meta Analysis` 接收 `question_text`、`question_pico`、`screening_criteria`、`included_studies` 和对应的完整 `CleanedArticle[]`；不接收 `StudyPIOCharacteristics[]` 或 `RiskOfBiasAssessment[]`。
+2. Synthesis Planning（历史编号 Subtask 1）已经在正式 Screening 前完成；Meta 复用同一个 frozen
+   `MetaAnalysisSynthesisPlan`。它不读取 included study IDs 或文章结果。不支持的数据形态只记录到
+   `unsupported_targets`，不形成下游 target。
+3. Study Result Extraction（历史编号 Subtask 2）对每个 supported `SynthesisTarget` 和 included article 宽召回 article-local `StudyResultRow.result_items[]`，允许宽 review target 对应多个细粒度 candidates。
+4. Candidate Resolution 以 target × study 为单位，不使用 Subtask 2 `match_status`，按冻结结构化规则选择、重复归并或安全合并为至多一个 contribution；并列或依赖不明保持 unresolved。只有 `resolved` 且数值校验通过的结果进入 `SynthesisAnalysisDataset`。
+5. Analysis Method Selection、Subgroup Analysis 与 Overall Estimation 只消费 `SynthesisAnalysisDataset`，决定 analysis method，并在可计算时生成 `OverallEstimate`、`SubgroupEstimate` 和 `SubgroupDifferenceTest`。
+6. Module 6 输出完整 `MetaAnalysisResultPackage`，同时保留 plan、原始候选、resolution records、analysis datasets、
+   estimates 与已计算单研究 effect/CI/variance/weight 的 `MetaAnalysisDataRow`。Matched estimate 的
+   `included_data_row_ids` 是 GRADE 取得当前 evidence-body contributions 的门禁。
 
 **Four-domain GRADE Assessment**
 
-1. `Four-domain GRADE Assessment` 接收 `question_pico`、可选 `screening_criteria`、`StudyPIOCharacteristics[]`、`RiskOfBiasAssessment[]` 和 `MetaAnalysisResultPackage`。
+1. `Four-domain GRADE Assessment` 接收 `question_pico`、`screening_criteria`、`StudyPIOCharacteristics[]`、`RiskOfBiasAssessment[]` 和 `MetaAnalysisResultPackage`。
 2. 该模块遍历 `MetaAnalysisResultPackage.analysis_settings`，每个 `AnalysisSetting` 先定义一个内部评估单元，并为当前版本选择一个严格 1:1 对应的 SoF row 输出对象。
 3. 对 overall setting，GRADE 使用 matching `OverallEstimate` 的 `included_study_ids` 定义 evidence body。
 4. 对 subgroup-level setting，GRADE 使用 matching `SubgroupEstimate` 的 `included_study_ids` 定义 evidence body。
-5. 在同一个 evidence body 上，Module 7 并行判断 `risk_of_bias`、`inconsistency`、`indirectness` 和 `imprecision` 四个 domains。
-6. 最终 workflow 输出 `SoFRowGRADEAssessment[]`；当前 v1 中一个 SoF row 严格对应一个 selected analysis setting / evidence body，并承载该 evidence body 的四个 GRADE downgrade domain judgements。
+5. GRADE Risk of Bias 使用完整可用的 Meta `weight_fraction` 判断各研究的信息贡献；Inconsistency 使用同一
+   estimate 的单研究 effect/CI/analysis scale/weight；Indirectness 按 `included_data_row_ids` 连接 row-scoped
+   Study PIO，先做结果盲 directness 分类，再在冻结分类后使用 effect/CI/weight 形成 evidence-body 判断。三者都不
+   重新计算 Meta effect 或 weight；Imprecision 按自身 typed contract 消费 matched estimate。
+6. 在同一个 evidence body 上，Module 7 并行判断 `risk_of_bias`、`inconsistency`、`indirectness` 和 `imprecision` 四个 domains。
+7. GRADE 生成 `SoFRowGRADEAssessment[]`；产品装配器再按 setting ID 将它与 Meta 结果组成
+   `EvidencePackage.evidence_units[]`。当前 v1 中一个 EvidenceUnit 严格对应一个 selected analysis setting /
+   evidence body，并承载该 evidence body 的结构化 study effects、Meta estimates 和四个 GRADE downgrade
+   domain judgements。
 
 ### 1.6 Evidence Body Flow
 
@@ -186,7 +232,10 @@ Evidence body 的确定规则如下：
 3. 如果当前 `AnalysisSetting.subgroup` 非空，则该 setting 对应的 effect estimate 来自 matching `SubgroupEstimate`。
 4. matched estimate 的 `included_study_ids` 定义当前 setting 的 evidence body。
 5. Module 7 使用该 `included_study_ids` 过滤 `RiskOfBiasAssessment[]` 和 `StudyPIOCharacteristics[]`。
-6. Module 7 对同一个 evidence body 并行生成 `risk_of_bias`、`inconsistency`、`indirectness` 和 `imprecision` 四个 domain judgements。
+6. Indirectness 使用 `question_pico` 作为宽泛 review scope，当前 `AnalysisSetting` 作为 synthesis target，并以
+   matched estimate 的 `included_data_row_ids` 连接 `MetaAnalysisDataRow` 与 Study PIO；无法唯一匹配时保留
+   candidates 和明确 mapping status，不做激进工程猜测。
+7. Module 7 对同一个 evidence body 并行生成 `risk_of_bias`、`inconsistency`、`indirectness` 和 `imprecision` 四个 domain judgements。
 
 ### 1.7 Workflow Diagram
 
@@ -196,7 +245,9 @@ Online EBM Workflow
 
 ### 2.1 Task Definition
 
-Q2PICO 模块负责将用户输入的自然语言临床问题转换为结构化 PICO 表示。
+Q2PICO 模块负责将用户输入的自然语言临床问题转换为结构化 PICO 表示，并可按运行选项补充
+protocol-oriented candidate outcome domains。这是一个业务任务；显式 O 抽取与可选 outcome planning
+是该任务的内部处理阶段。
 
 任务单位：
 
@@ -204,7 +255,9 @@ Q2PICO 模块负责将用户输入的自然语言临床问题转换为结构化 
 one clinical question
 ```
 
-该模块只负责识别临床问题中的 population、intervention、comparator 和 outcome。它不负责检索式生成、文献检索、纳排筛选、analysis setting 推断或 GRADE 判断。
+该模块负责识别临床问题中的 population、intervention、comparator 和 outcome，并可生成候选 review
+outcome domains。它不负责完整 protocol outcome specification、检索式生成、文献检索、纳排筛选、
+analysis setting 推断或 GRADE 判断。
 
 ### 2.2 Input
 
@@ -212,7 +265,8 @@ one clinical question
 
 ```json
 {
-  "question_text": "In adults with depression, do selective serotonin reuptake inhibitors improve remission compared with placebo?"
+  "question_text": "In adults with depression, do selective serotonin reuptake inhibitors improve remission compared with placebo?",
+  "expand_outcomes": true
 }
 ```
 
@@ -235,6 +289,12 @@ one clinical question
       <td>yes</td>
       <td>用户输入的自然语言临床问题；该字段是 online workflow 的起点，来源为用户原始问题</td>
     </tr>
+    <tr>
+      <td><code>expand_outcomes</code></td>
+      <td>boolean</td>
+      <td>no</td>
+      <td>是否生成 protocol-oriented candidate outcome domains；默认值为 <code>true</code>，可显式关闭</td>
+    </tr>
   </tbody>
 </table>
 
@@ -248,7 +308,8 @@ one clinical question
   "P": ["adults with depression"],
   "I": ["selective serotonin reuptake inhibitors"],
   "C": ["placebo"],
-  "O": ["remission"]
+  "O": ["remission"],
+  "O_expanded": ["quality of life", "serious adverse events"]
 }
 ```
 
@@ -287,7 +348,13 @@ one clinical question
       <td><code>O</code></td>
       <td>list[string]</td>
       <td>yes</td>
-      <td>Outcome</td>
+      <td>原始问题明确表达的 outcome domain 或 endpoint</td>
+    </tr>
+    <tr>
+      <td><code>O_expanded</code></td>
+      <td>list[string]</td>
+      <td>yes</td>
+      <td>可选生成的 protocol-oriented candidate outcome domains；未启用 outcome planning 时为空列表</td>
     </tr>
   </tbody>
 </table>
@@ -295,27 +362,31 @@ one clinical question
 
 输出约束：
 
-- 四个字段 `P/I/C/O` 必须同时存在。
+- 五个字段 `P/I/C/O/O_expanded` 必须同时存在。
 - 每个字段的值必须是 string list。
-- 如果问题中某个 slot 没有明确表达，该字段输出空 list。
-- 输出内容应表示问题本身可支持的 PICO 信息，不应包含文献证据、研究结果或下游推断。
-- 后续模块统一使用 `question_pico` 指代 Q2PICO 的规范化输出对象；`question_pico` 内部字段即 `P/I/C/O`。
+- 如果问题中某个 `P/I/C/O` slot 没有明确表达，该字段输出空 list。
+- `P/I/C/O` 只表示问题本身支持的信息，不包含文献证据、研究结果或未声明的结局推断。
+- `O_expanded` 与 source-faithful 的 `O` 分开保存；它只表示可选生成的 protocol outcome candidates，
+  不是完整的 protocol outcome specification。
+- 后续模块统一使用 `question_pico` 指代 Q2PICO 的规范化输出对象；`question_pico` 内部字段即
+  `P/I/C/O/O_expanded`。
 
 
 ## 3. Module 2: Search & Article Retrieval
 
 ### 3.1 Task Definition
 
-Search & Article Retrieval 模块负责根据 Q2PICO 的结构化临床问题生成检索式，并在线检索 RCT 文献，返回清洗后的候选文章。
+Search & Article Retrieval 模块负责根据 Q2PICO 的结构化临床问题生成检索概念计划，由具体来源 adapter
+编译并执行检索，返回清洗后的候选文章。
 
 该模块的目标是为 online workflow 提供 question-guided RCT retrieval。它服务于当前产品工作流中的候选证据发现，不等价于 Cochrane-style comprehensive systematic search。
 
 该模块包含两个任务：
 
-1. `Search Query Generation`
-2. `Article Retrieval`
+1. `Search Concept Planning`
+2. `Source Query Compilation and Article Retrieval`
 
-全局约束：当前 workflow 只处理 RCT evidence。因此检索式生成和文章检索都默认面向 RCT 文献，不在本模块中支持 observational studies、case reports、reviews 或 guidelines。
+全局约束：当前 workflow 只处理 RCT evidence。因此概念计划和来源检索都默认面向 RCT 文献，不在本模块中支持 observational studies、case reports、reviews 或 guidelines。
 
 该模块不负责判断文章是否最终纳入，也不负责从文章中抽取 meta-analysis 数据。
 
@@ -364,11 +435,11 @@ Search & Article Retrieval 模块负责根据 Q2PICO 的结构化临床问题生
       <td>Outcome</td>
     </tr>
     <tr>
-      <td><code>database</code></td>
+      <td><code>source_names</code></td>
       <td>list[string]</td>
       <td>yes</td>
       <td>workflow config</td>
-      <td>检索数据库，例如 PubMed / PMC</td>
+      <td>按执行顺序配置的检索来源；当前只支持 <code>pubmed</code></td>
     </tr>
     <tr>
       <td><code>filters</code></td>
@@ -378,11 +449,25 @@ Search & Article Retrieval 模块负责根据 Q2PICO 的结构化临床问题生
       <td>RCT-only、全文可得性、语言、发表时间等检索约束</td>
     </tr>
     <tr>
-      <td><code>max_results</code></td>
+      <td><code>max_candidates_per_source</code></td>
+      <td>integer | null</td>
+      <td>no</td>
+      <td>workflow config</td>
+      <td>每个检索来源的 citation inventory 上限；默认 null，服务安全上限 10,000</td>
+    </tr>
+    <tr>
+      <td><code>max_results_per_source</code></td>
       <td>integer</td>
       <td>yes</td>
       <td>workflow config</td>
-      <td>最大返回文章数量</td>
+      <td>每个检索来源最多处理并返回的全文文章数量；默认和上限均为 500</td>
+    </tr>
+    <tr>
+      <td><code>rct_filter_enabled</code></td>
+      <td>boolean</td>
+      <td>yes</td>
+      <td>workflow config</td>
+      <td>是否追加 PubMed RCT filter；默认开启</td>
     </tr>
   </tbody>
 </table>
@@ -430,7 +515,7 @@ Search & Article Retrieval 模块负责根据 Q2PICO 的结构化临床问题生
 
 ### 3.3 Output
 
-模块级输出包括检索式、检索执行信息和清洗后的候选文章。
+模块级输出包括各来源的独立检索执行信息，以及按来源配置顺序展平的候选文章。
 
 
 <table>
@@ -443,42 +528,27 @@ Search & Article Retrieval 模块负责根据 Q2PICO 的结构化临床问题生
   </thead>
   <tbody>
     <tr>
-      <td><code>search_query</code></td>
-      <td>string</td>
-      <td>生成的检索式</td>
-    </tr>
-    <tr>
-      <td><code>query_used</code></td>
-      <td>string</td>
-      <td>实际执行的检索式</td>
-    </tr>
-    <tr>
-      <td><code>database</code></td>
-      <td>string</td>
-      <td>实际检索数据库</td>
-    </tr>
-    <tr>
-      <td><code>total_hits</code></td>
-      <td>integer</td>
-      <td>检索命中数量</td>
+      <td><code>source_results</code></td>
+      <td>list[SearchSourceResult]</td>
+      <td>按配置顺序排列的来源级检索结果；每项包含 source_name、search_query、query_used、total_hits、returned_count、articles 和 warnings</td>
     </tr>
     <tr>
       <td><code>returned_count</code></td>
       <td>integer</td>
-      <td>返回数量</td>
+      <td>所有来源文章展平后的数量，当前不表示跨来源去重后的数量</td>
     </tr>
     <tr>
       <td><code>articles</code></td>
       <td>list[CleanedArticle]</td>
-      <td>清洗后的候选文章</td>
+      <td>先按来源配置顺序、再按来源内 retrieval rank 展平的候选文章</td>
     </tr>
   </tbody>
 </table>
 
 
-### 3.4 Task 1: Search Query Generation
+### 3.4 Task 1: Search Concept Planning
 
-Search Query Generation 负责根据 Q2PICO 输出生成可执行的检索式。
+Search Concept Planning 负责根据 Q2PICO 生成不绑定具体检索来源语法的概念计划。
 
 输入：
 
@@ -539,9 +609,9 @@ Search Query Generation 负责根据 Q2PICO 输出生成可执行的检索式。
   </thead>
   <tbody>
     <tr>
-      <td><code>search_query</code></td>
-      <td>string</td>
-      <td>面向 RCT 文献检索的可执行检索式</td>
+      <td><code>concepts</code></td>
+      <td>list[SearchQueryConcept]</td>
+      <td>按 P、I 和 fallback C 选择的 source-neutral 检索概念及基础自由词</td>
     </tr>
   </tbody>
 </table>
@@ -549,15 +619,17 @@ Search Query Generation 负责根据 Q2PICO 输出生成可执行的检索式。
 
 说明：
 
-- `P/I/C` 是检索式生成的主要语义输入。
-- `O` 可作为检索辅助语义输入，但当前模块不承诺其等价于系统综述级高敏感度检索策略。
-- 当前 workflow 约束为 RCT-only，因此不需要把 `S` 作为模块输入字段。
-- 本任务只生成检索式，不决定检索数据库、检索条数或过滤参数。
-- 当前任务目标是生成可执行、可服务下游 workflow 的 online retrieval query，而不是复现完整 systematic review search strategy。
+- `P/I/C` 是概念计划的主要语义输入。
+- 同一 slot 内的多个概念用 `OR` 组合，P 与 I 概念组之间用 `AND` 组合。
+- 当前实现不把 `O` 加入主检索概念，以避免过早限制召回。
+- 默认通过 PubMed filter 检索 RCT reports，但可关闭；是否为 primary report、是否含可提取原始数据由
+  Study Screening 判断，因此不需要把 `S` 作为模块输入字段。
+- 本任务不生成具体来源专用字段语法。
+- 当前任务目标是形成可由 source adapter 编译的概念计划，而不是复现完整 systematic review search strategy。
 
-### 3.5 Task 2: Article Retrieval
+### 3.5 Task 2: Source Query Compilation and Article Retrieval
 
-Article Retrieval 负责执行检索式，返回清洗后的候选文章。
+每个 source adapter 负责把概念计划编译成自己的检索语法并返回清洗后的候选文章。当前只实现 PubMed/PMC。
 
 输入：
 
@@ -573,16 +645,16 @@ Article Retrieval 负责执行检索式，返回清洗后的候选文章。
   </thead>
   <tbody>
     <tr>
-      <td><code>search_query</code></td>
-      <td>string</td>
-      <td>Search Query Generation</td>
-      <td>实际执行的检索式</td>
+      <td><code>query_plan</code></td>
+      <td>SearchQueryPlan</td>
+      <td>Search Concept Planning</td>
+      <td>不绑定来源语法的检索概念计划</td>
     </tr>
     <tr>
-      <td><code>database</code></td>
+      <td><code>source_names</code></td>
       <td>list[string]</td>
       <td>workflow config</td>
-      <td>检索数据库，例如 PubMed / PMC</td>
+      <td>按执行顺序排列的检索来源；当前只支持 <code>pubmed</code></td>
     </tr>
     <tr>
       <td><code>filters</code></td>
@@ -591,10 +663,16 @@ Article Retrieval 负责执行检索式，返回清洗后的候选文章。
       <td>RCT-only、全文可得性、语言、发表时间等检索约束</td>
     </tr>
     <tr>
-      <td><code>max_results</code></td>
+      <td><code>max_candidates_per_source</code></td>
       <td>integer</td>
       <td>workflow config</td>
-      <td>最大返回文章数量</td>
+      <td>每个来源最多扫描的候选数量</td>
+    </tr>
+    <tr>
+      <td><code>max_results_per_source</code></td>
+      <td>integer</td>
+      <td>workflow config</td>
+      <td>每个来源最多返回的最终文章数量</td>
     </tr>
   </tbody>
 </table>
@@ -613,24 +691,14 @@ Article Retrieval 负责执行检索式，返回清洗后的候选文章。
   </thead>
   <tbody>
     <tr>
-      <td><code>query_used</code></td>
-      <td>string</td>
-      <td>实际执行的检索式</td>
-    </tr>
-    <tr>
-      <td><code>database</code></td>
-      <td>string</td>
-      <td>实际检索数据库</td>
-    </tr>
-    <tr>
-      <td><code>total_hits</code></td>
-      <td>integer</td>
-      <td>检索命中数量</td>
+      <td><code>source_results</code></td>
+      <td>list[SearchSourceResult]</td>
+      <td>来源级结果；包含 source_name、search_query、query_used、total_hits、returned_count、articles 和 warnings</td>
     </tr>
     <tr>
       <td><code>returned_count</code></td>
       <td>integer</td>
-      <td>返回数量</td>
+      <td>所有来源文章展平后的数量，当前不做跨来源去重</td>
     </tr>
     <tr>
       <td><code>articles</code></td>
@@ -645,7 +713,9 @@ Article Retrieval 负责执行检索式，返回清洗后的候选文章。
 
 `CleanedArticle` 表示已经完成基础清洗、可供后续 screening 和 evidence extraction 使用的文章对象。
 
-在当前 workflow 中，study 是后续 screening、RoB、meta-analysis 和 GRADE 的基本对象单位。当前系统采用 one main RCT = one study 的简化约定；每个 `CleanedArticle` 对应一个主要 RCT study，并由 `study_id` 标识。当前版本不处理同一研究多报告归并，由此带来的重复计数风险和信息缺失风险属于已知系统边界。
+在 Search Retrieval 输出中，`CleanedArticle` 的粒度仍是 article/report。`study_id` 当前只是 article-level
+workflow proxy，不表示检索阶段已经确认它是 primary RCT，也不表示已经完成同一研究多报告归并。后续
+Study Screening 负责 eligibility judgment；真正的 report-to-study 绑定仍是当前系统边界。
 
 
 <table>
@@ -660,7 +730,7 @@ Article Retrieval 负责执行检索式，返回清洗后的候选文章。
     <tr>
       <td><code>study_id</code></td>
       <td>string</td>
-      <td>系统内 study ID；当前约定为一个主要 RCT 对应一个 <code>study_id</code></td>
+      <td>系统内 article-level workflow ID；当前不代表已完成 report-to-study 绑定</td>
     </tr>
     <tr>
       <td><code>metadata</code></td>
@@ -863,20 +933,29 @@ Article Retrieval 负责执行检索式，返回清洗后的候选文章。
 
 ### 4.1 Task Definition
 
-Study Screening 模块负责先生成轻量的 review-level eligibility criteria artifact，再判断检索返回的候选文章是否应纳入后续证据分析。
+Study Screening 模块负责先生成轻量的 review-level eligibility criteria artifact，再结合 result-blind frozen
+synthesis targets，以高召回粗筛和定向全文精筛判断候选文章是否应进入当前自动化证据分析链路。
 
-当前 workflow 中，Study Screening 的 review-level eligibility 主要基于用户问题、question-level PICO 中的 P/I/C 信息以及 study design 约束，不以目标 outcome 是否已报告作为主要纳入标准。
+正式 review eligibility 仍主要基于用户问题、question-level PICO 中的 P/I/C 信息以及 study design 约束。
+Target quantitative readiness 是独立判断，不混入 criteria；workflow 运行门禁要求至少一个 frozen target 具有
+当前 Meta runtime 接受的定量表示。
 
 这里的 `screening_criteria` 不是完整 protocol，也不承载 meta-analysis synthesis plan。它只表达用于 study screening 的纳入/排除边界，可以是简明文本、列表或等价的结构化对象。
 
-该模块包含两个子任务：
+该模块在完整 workflow 中包含四个顺序步骤：
 
 1. `Screening Criteria Generation`
-2. `Article Screening`
+2. result-blind `Meta Synthesis Planning`（由 Meta capability 生成，结果由两模块共享）
+3. `High-recall Coarse Screening`
+4. `Synthesis-ready Full-text Screening`
 
-该模块只做 study-level include / exclude 判断，不负责生成 analysis setting，不抽取 meta-analysis 数据，不做 risk of bias 或 GRADE。
+该模块对当前 article/report 做最终二元 include / exclude 判断，不负责生成 analysis setting，不抽取
+meta-analysis 数据，不做 risk of bias 或 GRADE。当前尚未完成 report-to-study collation。
 
-当前 workflow 只处理 RCT evidence，因此非 RCT、review、guideline、case report 等应被排除。
+当前默认 `rct_only=true` 且 `report_scope=primary_results_report`。当前 pairwise workflow 的系统 criteria
+同时要求个体随机平行组设计；cluster、crossover、cluster-crossover、其他非平行设计以及无法确认设计的文章
+不进入后续 Meta。Primary results report 本身不要求目标 outcome 已经以可直接提取或合并的数值形式报告；
+数值可执行性由独立的 target readiness 判断。
 
 ### 4.2 Input
 
@@ -916,6 +995,27 @@ Study Screening 模块负责先生成轻量的 review-level eligibility criteria
       <td>全局约束，例如 <code>study_design = RCT</code></td>
     </tr>
     <tr>
+      <td><code>screening_policy</code></td>
+      <td>ScreeningPolicy</td>
+      <td>yes</td>
+      <td>workflow config</td>
+      <td>RCT、report scope、Outcome eligibility、年份、语言和撤稿策略</td>
+    </tr>
+    <tr>
+      <td><code>evidence_scope</code></td>
+      <td>abstract | full_text</td>
+      <td>yes</td>
+      <td>workflow config</td>
+      <td>模块级单阶段 API 的证据范围；完整 workflow 固定使用 coarse + targeted full-text 两阶段方法</td>
+    </tr>
+    <tr>
+      <td><code>synthesis_plan</code></td>
+      <td>MetaAnalysisSynthesisPlan</td>
+      <td>workflow only</td>
+      <td>Meta Synthesis Planning</td>
+      <td>不读取文章结果而预先冻结的 targets；供证据导航与 target readiness 使用</td>
+    </tr>
+    <tr>
       <td><code>articles</code></td>
       <td>list[CleanedArticle]</td>
       <td>yes</td>
@@ -924,6 +1024,11 @@ Study Screening 模块负责先生成轻量的 review-level eligibility criteria
     </tr>
   </tbody>
 </table>
+
+`ScreeningPolicy` 默认：`rct_only=true`、`pairwise_parallel_individual_only=true`、
+`report_scope=primary_results_report`、
+`outcome_eligibility_enabled=false`、`exclude_retracted=true`。年份使用结构化 start/end；API 每次最多接收
+500 篇文章。
 
 `WorkflowConstraints` schema:
 
@@ -954,7 +1059,7 @@ Study Screening 模块负责先生成轻量的 review-level eligibility criteria
       <td><code>publication_year_range</code></td>
       <td>string?</td>
       <td>no</td>
-      <td>可选发表年份范围约束，例如 <code>2000-2024</code>；若提供，应进入 screening criteria</td>
+      <td>旧版兼容字段；当前年份优先由 ScreeningPolicy 的结构化范围做 deterministic judgment</td>
     </tr>
   </tbody>
 </table>
@@ -985,9 +1090,34 @@ Study Screening 模块负责先生成轻量的 review-level eligibility criteria
       <td>每篇候选文章的筛选判断</td>
     </tr>
     <tr>
+      <td><code>coarse_decisions</code></td>
+      <td>list[CoarseScreeningDecision]</td>
+      <td>粗筛 advance/exclude、source spans 和实际证据输入大小</td>
+    </tr>
+    <tr>
+      <td><code>synthesis_readiness</code></td>
+      <td>dict[string, list[SynthesisTargetReadiness]]</td>
+      <td>每篇文章对每个 frozen target 的 current-supported、methodologically-eligible-unsupported 或 not-eligible 状态</td>
+    </tr>
+    <tr>
+      <td><code>methodologically_eligible_unsupported_studies</code></td>
+      <td>list[string]</td>
+      <td>方法学合格且存在定量结果，但当前 runtime 不支持的数据表示</td>
+    </tr>
+    <tr>
+      <td><code>included_articles</code></td>
+      <td>list[string]</td>
+      <td>decision = include 的 article-level IDs</td>
+    </tr>
+    <tr>
+      <td><code>excluded_articles</code></td>
+      <td>list[string]</td>
+      <td>decision = exclude 的 article-level IDs</td>
+    </tr>
+    <tr>
       <td><code>included_studies</code></td>
       <td>list[string]</td>
-      <td>由 <code>decisions</code> 中 <code>decision = include</code> 的 <code>study_id</code> 组成；作为 Module 4/5/6 的 included study ID 输入</td>
+      <td>兼容既有下游的别名，当前值与 included_articles 相同</td>
     </tr>
   </tbody>
 </table>
@@ -995,9 +1125,12 @@ Study Screening 模块负责先生成轻量的 review-level eligibility criteria
 
 ### 4.4 Task 1: Screening Criteria Generation
 
-Screening Criteria Generation 负责根据用户问题、Q2PICO 输出和全局约束生成可执行的纳入/排除标准 artifact。
+Screening Criteria Generation 的 LLM 只根据用户问题和 P/I/C 生成 review-specific 标准。Application 追加
+RCT、个体随机平行组和 primary-results-report 系统标准；年份、语言、撤稿和明确 publication type 由
+deterministic rules 判断。
 
-生成 `screening_criteria` 时，应优先表达与 population、intervention/comparator、study design、发表年份范围和合格报告类型相关的纳入/排除标准；outcome 默认不作为排除研究的条件，仅在存在明确 review-level outcome restriction 时作为辅助上下文使用。
+Outcome 默认不传给 criteria planner。只有 `outcome_eligibility_enabled=true` 时才允许生成 outcome measurement
+标准；不得要求 outcome 已报告为可直接提取或 synthesis 的数值形式。
 
 实现可以把 criteria 表达为一个对象或一段文本；只要 Article Screening 可以消费，并能在下游作为 eligibility context 被引用即可。
 
@@ -1096,7 +1229,12 @@ Screening Criteria Generation 负责根据用户问题、Q2PICO 输出和全局�
 
 ### 4.5 Task 2: Article Screening
 
-Article Screening 负责基于 `screening_criteria` 判断候选文章是否纳入。
+Article Screening 负责基于 `screening_criteria` 判断正式 eligibility，并在完整 workflow 中额外判断 frozen
+target 的当前 runtime readiness。
+
+每篇文章先做 metadata deterministic screening。完整 workflow 随后执行不含 table 的高召回 coarse call，
+只有 survivors 才进入包含定向 prose 和 raw table XML 的 precise call；两层都使用 strict JSON Schema。
+模块级 API 仍可选择旧的 abstract/full-text 单阶段 LLM 方法。
 
 输入：
 
@@ -1151,6 +1289,16 @@ Article Screening 负责基于 `screening_criteria` 判断候选文章是否纳�
       <td>每篇候选文章的筛选判断</td>
     </tr>
     <tr>
+      <td><code>included_articles</code></td>
+      <td>list[string]</td>
+      <td>纳入的 article-level IDs</td>
+    </tr>
+    <tr>
+      <td><code>excluded_articles</code></td>
+      <td>list[string]</td>
+      <td>排除的 article-level IDs</td>
+    </tr>
+    <tr>
       <td><code>included_studies</code></td>
       <td>list[string]</td>
       <td>由 <code>decisions</code> 中 <code>decision = include</code> 的 <code>study_id</code> 组成</td>
@@ -1177,11 +1325,6 @@ Article Screening 负责基于 `screening_criteria` 判断候选文章是否纳�
       <td>对应 <code>CleanedArticle.study_id</code></td>
     </tr>
     <tr>
-      <td><code>title</code></td>
-      <td>string</td>
-      <td>文章标题</td>
-    </tr>
-    <tr>
       <td><code>decision</code></td>
       <td>string</td>
       <td><code>include</code> / <code>exclude</code></td>
@@ -1197,19 +1340,14 @@ Article Screening 负责基于 `screening_criteria` 判断候选文章是否纳�
       <td>排除原因；纳入时为空</td>
     </tr>
     <tr>
-      <td><code>failed_criterion</code></td>
-      <td>string?</td>
-      <td>导致排除的主要标准</td>
+      <td><code>criterion_judgments</code></td>
+      <td>list[ScreeningCriterionJudgment]</td>
+      <td>逐标准 yes/no、reason、decision_source 和 source spans</td>
     </tr>
     <tr>
       <td><code>evidence_spans</code></td>
       <td>list[string]</td>
       <td>支持判断的原文证据片段</td>
-    </tr>
-    <tr>
-      <td><code>confidence</code></td>
-      <td>string?</td>
-      <td><code>low</code> / <code>medium</code> / <code>high</code></td>
     </tr>
   </tbody>
 </table>
@@ -1217,7 +1355,8 @@ Article Screening 负责基于 `screening_criteria` 判断候选文章是否纳�
 
 输出约束：
 
-- `included_studies` 是 `decisions` 的 workflow projection，不是独立判断结果。
+- `included_articles` 和 `excluded_articles` 是 `decisions` 的 projection。
+- `included_studies` 是当前兼容别名，不表示已经完成真实 study-level 归并。
 - `included_studies[*]` 必须能连接到 `CleanedArticle.study_id`。
 - 不得仅因候选研究未报告目标 outcome 而直接排除该研究；该研究是否贡献某个 analysis setting，由后续模块判断。
 
@@ -1300,21 +1439,33 @@ one included study
     </tr>
     <tr>
       <td><code>population</code></td>
-      <td>string</td>
+      <td>StudyPopulationCharacteristics</td>
       <td>yes</td>
       <td>study 实际纳入且与当前问题相关的人群、疾病状态、年龄、样本量、关键 eligibility</td>
     </tr>
     <tr>
-      <td><code>intervention_comparator</code></td>
-      <td>string</td>
+      <td><code>interventions</code></td>
+      <td>list[StudyInterventionCharacteristics]</td>
       <td>yes</td>
-      <td>study 中与当前问题相关的干预组、对照组、比较组的合并描述；不强拆独立 comparator 字段</td>
+      <td>study 中实际实施且与当前问题相关的 intervention arms</td>
+    </tr>
+    <tr>
+      <td><code>comparators</code></td>
+      <td>list[StudyComparatorCharacteristics]</td>
+      <td>yes</td>
+      <td>study 中实际使用的 control、placebo、usual care 或其他 comparison arms</td>
     </tr>
     <tr>
       <td><code>outcomes</code></td>
-      <td>string</td>
+      <td>list[StudyOutcomeCharacteristics]</td>
       <td>yes</td>
       <td>study 中与当前问题相关的结局、时间点、测量方式</td>
+    </tr>
+    <tr>
+      <td><code>notes</code></td>
+      <td>string</td>
+      <td>yes</td>
+      <td>method 标识与有限的 extraction warnings</td>
     </tr>
   </tbody>
 </table>
@@ -1322,19 +1473,24 @@ one included study
 
 输出约束：
 
-- `population / intervention_comparator / outcomes` 必须同时存在。
-- 如果某个字段在文章中没有足够信息，应输出空字符串。
+- `population / interventions / comparators / outcomes / notes` 必须同时存在。
+- 如果某个字段在文章中没有足够信息，应使用对应 domain contract 的空值，不得用 review PICO 补齐。
 - `question_pico` 只用于限定抽取范围，不用于补全文章中没有的信息。
-- `intervention_comparator` 应保留 intervention、control、placebo、usual care、no treatment 等 study arm 信息。
+- `interventions` 和 `comparators` 应保留 intervention、control、placebo、usual care、no treatment 等 study arm 信息。
 - 输出应优先覆盖与 `question_pico` 相关的 study population、intervention/comparator arms 和 outcomes。
 - 与当前问题无关的背景性内容不应作为主要输出。
+
+当前正式 method 是 `extraction_study_pico_slotwise_llm`。它每次处理一个 study，并在同一 method 内顺序完成
+population、intervention/comparator 和 outcome 三个 focused LLM stages。`RunStudyPIO` 负责将批量
+`included_studies` 按 `study_id` 关联到文章、受控并发执行不同 studies，并按输入顺序返回结果。
 
 
 ## 6. Module 5: Risk of Bias Assessment
 
 ### 6.1 Task Definition
 
-Risk of Bias Assessment 模块负责对已纳入 RCT study 进行基于 RoB 1 七域框架的 study-level domain 判断。
+Risk of Bias Assessment 模块负责仅依据一篇已纳入 RCT article，对配置的 Cochrane RoB 1 domains 进行
+article-level 保守判断，并基于预先指定的 key domains 形成可供下游消费的 scoped overall。
 
 任务单位：
 
@@ -1342,11 +1498,12 @@ Risk of Bias Assessment 模块负责对已纳入 RCT study 进行基于 RoB 1 �
 one included RCT study
 ```
 
-当前模块固定采用 RoB 1 作为风险偏倚评估框架；这是本 workflow 的方法选择。对每个 domain 输出风险判断和支持文本。
+当前模块固定采用 RoB 1，不接收 Meta-analysis result、protocol、registry 或 Study PIO。两类盲法和
+不完整结局数据沿用既有跨文章 outcomes 的保守判断规则；domain prompt 和医学判断标准保持独立稳定。
 
-### 6.2 Fixed RoB Domains
+### 6.2 Configured RoB Domains
 
-当前 workflow 只处理 RCT，且 Risk of Bias Assessment 固定采用 RoB 1 七域框架，因此本模块输出固定的 RoB 1 七域 judgement。
+默认 `assessed_domains` 和 `overall_key_domains` 均开启完整 RoB 1 七域，同时保留配置 domain 子集的能力：
 
 
 <table>
@@ -1397,7 +1554,7 @@ low_risk / unclear_risk / high_risk
 
 ### 6.3 Input
 
-输入为一篇已纳入 RCT study 及其可用于 RoB 判断的清洗文章内容。
+批量输入为 included study IDs、严格一一对应的清洗文章和 domain configuration。
 
 
 <table>
@@ -1411,16 +1568,22 @@ low_risk / unclear_risk / high_risk
   </thead>
   <tbody>
     <tr>
-      <td><code>study_id</code></td>
-      <td>string</td>
+      <td><code>included_studies</code></td>
+      <td>list[string]</td>
       <td>Study Screening</td>
-      <td>已纳入 RCT study 的唯一 ID</td>
+      <td>已纳入 RCT study IDs，定义输出顺序</td>
     </tr>
     <tr>
-      <td><code>article</code></td>
-      <td>CleanedArticle</td>
+      <td><code>articles</code></td>
+      <td>list[CleanedArticle]</td>
       <td>Search &amp; Article Retrieval</td>
-      <td>该 study 的清洗文章内容，包括 methods、results、tables 等可用于 RoB 判断的信息</td>
+      <td>每个 study 的 sections 和 tables；当前一个 study 对应一篇 article</td>
+    </tr>
+    <tr>
+      <td><code>domain_config</code></td>
+      <td>RiskOfBiasDomainConfig</td>
+      <td>Request/default</td>
+      <td>实际评估 domains 和参与 overall 的 key domains</td>
     </tr>
   </tbody>
 </table>
@@ -1428,14 +1591,14 @@ low_risk / unclear_risk / high_risk
 
 说明：
 
-- RoB domains 是模块固定配置，不作为输入字段传入。
+- `overall_key_domains` 必须是 `assessed_domains` 的非空子集；两者未提供时默认完整七域。
 - 输入中不得包含下游标注、参考答案或已知 RoB judgement 字段。
 - study-level PIO characteristics 不作为本模块输入。
-- RoB judgement 应基于 study report 中与随机化、分配隐藏、盲法、失访、选择性报告等相关的方法学和报告证据。
+- 每次最多 500 个 studies/articles；空全文、缺失/重复/额外 article 或非法 domain config 使整个任务失败。
 
 ### 6.4 Output
 
-输出为固定 RoB 1 domains 上的 study-level 判断。
+每个 study 输出配置 domain judgements、structured overall 和 assessment coverage。
 
 
 <table>
@@ -1455,69 +1618,44 @@ low_risk / unclear_risk / high_risk
       <td>对应 included RCT study</td>
     </tr>
     <tr>
-      <td><code>risk_of_bias</code></td>
-      <td>list[RiskOfBiasJudgement]</td>
+      <td><code>domains</code></td>
+      <td>list[RoB1DomainJudgement]</td>
       <td>yes</td>
-      <td>每个 RoB domain 的判断</td>
+      <td>按固定 RoB 1 顺序返回配置 domain 的判断和理由</td>
+    </tr>
+    <tr>
+      <td><code>overall</code></td>
+      <td>RoB1OverallJudgement</td>
+      <td>yes</td>
+      <td>基于配置 key domains 的确定性 high/unclear/low summary</td>
+    </tr>
+    <tr>
+      <td><code>assessed_domains / overall_key_domains / unassessed_domains</code></td>
+      <td>list[string]</td>
+      <td>yes</td>
+      <td>供下游审计 assessment coverage</td>
     </tr>
   </tbody>
 </table>
 
 
-`RiskOfBiasJudgement` schema:
+`RoB1DomainJudgement` 的 `judgement` 固定为 `low_risk | unclear_risk | high_risk`，`rationale` 必须
+包含非空文章证据或明确说明文章未报告。`source_spans` 当前为空。
 
 
-<table>
-  <thead>
-    <tr>
-      <th>Field</th>
-      <th>Type</th>
-      <th>Required</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>domain_id</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td>固定 RoB 1 domain ID</td>
-    </tr>
-    <tr>
-      <td><code>domain</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td>RoB 1 domain 名称</td>
-    </tr>
-    <tr>
-      <td><code>judgement</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td><code>low_risk</code> / <code>unclear_risk</code> / <code>high_risk</code></td>
-    </tr>
-    <tr>
-      <td><code>support_text</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td>支持该判断的证据文本</td>
-    </tr>
-  </tbody>
-</table>
+Overall 不调用 LLM：任一 key domain high 则 high；否则任一 key domain unclear 则 unclear；否则全部 low
+才为 low。它包含 `rationale`、`driving_domains` 和 `basis=configured_key_domains`。默认缺少的
+`selective_reporting`、`other_bias` 是 `unassessed`，不是 `unclear`，也不参与默认 overall。
 
-
-输出约束：
-
-- 每篇 study 应输出固定 7 个 RoB domains。
-- `domain_id` 必须来自固定 RoB 1 domain set。
-- `judgement` 必须来自固定 judgement label set。
-- `support_text` 应给出可追溯的支持文本；如果依据不足，可为空字符串，但 judgement 仍需输出。
+不同 studies 最多 4 个并发；一个 study 内配置 domains 默认最多 7 个并发。每个 domain 最多两次业务尝试，即
+首次调用加一次 retry；两次失败使整个批次失败，不生成部分 overall。Study 和 domain 输出顺序始终确定。
 
 
 ## 7. Module 6: Meta Analysis
 
 ### 7.1 Task Definition
 
-Meta Analysis 模块负责在已纳入 RCT studies 的基础上，完成 evidence synthesis 所需的 analysis setting 定义、study-level result data extraction、analysis model decision、subgroup analysis 和 overall estimate calculation。
+Meta Analysis 模块负责在已纳入 RCT studies 的基础上，完成 result-blind local synthesis planning、study-level candidate extraction、candidate resolution、analysis dataset 构造、analysis method decision、subgroup analysis 和 overall estimate calculation。
 
 任务单位：
 
@@ -1525,15 +1663,16 @@ Meta Analysis 模块负责在已纳入 RCT studies 的基础上，完成 evidenc
 one online EBM question / one review-level meta-analysis result package
 ```
 
-该模块对应真实系统综述中的 synthesis preparation 和 meta-analysis 阶段。它先判断哪些 intervention/comparator、outcome、timepoint、subgroup 和 study 集合可以被组织成可分析的 synthesis unit，再从每篇 study 中抽取二分类或连续型 result data，并在可合并时生成 subgroup estimates、overall estimates 和 subgroup difference tests。
+该模块对应真实系统综述 protocol 中被拆分下放给 Meta-analysis 的 planning fragment，以及 review execution 中的 result extraction 和 synthesis 阶段。它先在不读取 study results 的情况下冻结 target 与结构化选择规则，再从每篇 study 中宽召回二分类或连续型 candidates，经选择、重复归并或安全的研究内合并形成每个 study/target 最多一个统计 contribution，并在可合并时生成 subgroup estimates、overall estimates 和 subgroup difference tests。
 
-该模块包含五个子任务：
+该模块包含五个既有 subtasks，并在 Subtask 2 与 3 之间增加一个显式业务阶段：
 
-1. `Analysis Setting Definition`
-2. `Study-level Result Data Extraction`
-3. `Analysis Model Decision`
-4. `Subgroup Analysis`
-5. `Overall Estimate Calculation`
+1. `Meta-analysis Synthesis Planning`（Subtask 1）
+2. `Study-level Candidate Result Extraction`（Subtask 2）
+3. `Candidate Resolution`（显式中间阶段）
+4. `Analysis Method Decision`（Subtask 3）
+5. `Subgroup Analysis`（Subtask 4）
+6. `Overall Estimate Calculation`（Subtask 5）
 
 当前 workflow 在本模块只支持两类数据：
 
@@ -1542,17 +1681,15 @@ Dichotomous
 Continuous
 ```
 
-当前 workflow 在本模块的下游 estimate 目标仍是 pairwise meta-analysis：一个 experimental arm 对一个 control arm，且 study-level result data 可以抽取为 arm-level numeric data。Subtask 2 可记录 multi-arm shared-control 关系，但只保留原始 arm-level result items 和 resolution metadata，不在抽取阶段拆分 shared arm。cluster RCT、crossover RCT、adjusted contrast-level data、time-to-event、rate、ordinal 和 count outcome 暂不在本模块处理。
+当前 workflow 在本模块的下游 estimate 目标仍是 pairwise meta-analysis：一个 experimental arm 对一个 control arm，且 study-level result data 可以抽取为 arm-level numeric data。Study Screening 已用必要 criterion 排除 cluster/crossover 等非个体随机平行组设计。Subtask 2 只保留原始 arm-level result items；Candidate Resolution 在 eligible arms 临床等价、共享 control identity 与 primitive data 均确认时可合并 experimental arms 并只保留一次 control。Adjusted contrast-level data、time-to-event、rate、ordinal 和 count outcome 暂不在本模块处理。
 
-该模块不重新生成 PICO，不重新筛选 study，不重新判断 Risk of Bias，不做 GRADE certainty assessment。`CandidateSynthesisDimension` 是 Analysis Setting Definition 内部候选层，不进入模块级输出；`AnalysisSetting` 是后续 extraction、estimate calculation 和 GRADE 的最终分析单元。
-
-Benchmark 构建中，`AnalysisSetting` cleaning 是 Meta Analysis 的上游 source-of-truth。Comparison cleaning cache 必须覆盖实际用于 comparison extraction 的完整 candidate 输入，包括 `candidate_id`、`review_id`、`analysis_group`、`analysis_number`、`analysis_name`、`analysis_group_name` 和 `explicit_labels`；旧 cache 或无法校验 source hash 的 setting 不得进入后续 subtask 构建。当前可复现 Meta Analysis benchmark 版本为 `cochrane_meta_v2`，其主构建只接受 `setting_cleaning_v2` / `comparison_v2` 且 source hash 可校验的 setting。
-
-GRADE 可复用 Meta Analysis workflow 的已校验 setting 和 row universe，但 GRADE/shared artifact 不应反向作为 Meta Analysis 主构建的默认来源。Benchmark 实现中，GRADE 对 Meta Analysis workflow 的复用必须写入 GRADE 私有中间目录，例如 `raw_data/grade/intermediate/meta_analysis_workflow_for_<alignment_name>/`；不得把 GRADE 所需的 shared settings 写回 `raw_data/meta_analysis/intermediate/`，否则会污染 Meta Analysis 主数据集。
+该模块不重新生成 PICO，不重新筛选 study，不重新判断 Risk of Bias，不做 GRADE certainty assessment。`SynthesisTarget` 是冻结计划单元；`StudyResultRow.result_items[]` 是宽召回候选层；`SynthesisAnalysisDataset` 是 Subtask 3–5 的唯一统计入口；`AnalysisSetting` 是 resolution 后的最终分析单元。
 
 ### 7.2 Input
 
-输入为当前问题、question-level PICO、已纳入研究 ID 和对应清洗文章；`screening_criteria` 和 study-level PIO characteristics 可作为辅助上下文，但不是本模块的必需输入。
+输入为当前问题、question-level PICO、frozen screening criteria、已纳入研究 ID 和对应清洗文章。
+Meta Analysis 不依赖 Study-level PIO Characteristics 或 Risk of Bias；synthesis plan 由本模块 Subtask 1
+生成，不作为外部可选输入。
 
 
 <table>
@@ -1588,6 +1725,13 @@ GRADE 可复用 Meta Analysis workflow 的已校验 setting 和 row universe，�
       <td>当前问题的 question-level PICO</td>
     </tr>
     <tr>
+      <td><code>screening_criteria</code></td>
+      <td>ScreeningCriteria</td>
+      <td>yes</td>
+      <td>Study Screening</td>
+      <td>已冻结的 review eligibility scope；只供 Subtask 1 生成 Meta-local synthesis plan，不用于事后筛选结果</td>
+    </tr>
+    <tr>
       <td><code>included_studies</code></td>
       <td>list[string]</td>
       <td>yes</td>
@@ -1595,25 +1739,11 @@ GRADE 可复用 Meta Analysis workflow 的已校验 setting 和 row universe，�
       <td>已纳入 RCT studies 的 <code>study_id</code> 列表；由 <code>ScreeningDecision.decision = include</code> 的 records 投影得到</td>
     </tr>
     <tr>
-      <td><code>screening_criteria</code></td>
-      <td>ScreeningCriteria?</td>
-      <td>no</td>
-      <td>Study Screening</td>
-      <td>可选 eligibility context；用于理解 review-level 纳入/排除边界，不替代 analysis setting finalization</td>
-    </tr>
-    <tr>
-      <td><code>study_characteristics</code></td>
-      <td>list[StudyPIOCharacteristics]?</td>
-      <td>no</td>
-      <td>Study-level PIO Characteristics Extraction</td>
-      <td>可选辅助上下文；用于帮助识别 candidate comparison、outcome、timepoint 和 eligible studies，不作为 result data extraction 或 estimate calculation 的硬依赖</td>
-    </tr>
-    <tr>
       <td><code>articles</code></td>
       <td>list[CleanedArticle]</td>
       <td>yes</td>
       <td>Search &amp; Article Retrieval</td>
-      <td>按 <code>included_studies</code> 过滤后的清洗正文和表格，用于判断 outcome measure、timepoint、数据类型和可综合性</td>
+      <td>与 <code>included_studies</code> 严格一一对应的文章容器；当前 Meta Subtask 2 只把其中 raw table XML 用于 candidate discovery、repair 与 result completion，正文不进入这些调用</td>
     </tr>
   </tbody>
 </table>
@@ -1639,6 +1769,21 @@ GRADE 可复用 Meta Analysis workflow 的已校验 setting 和 row universe，�
       <td>当前 online review/question ID</td>
     </tr>
     <tr>
+      <td><code>synthesis_plan</code></td>
+      <td>MetaAnalysisSynthesisPlan</td>
+      <td>result-blind、带 version/hash 的 Meta-local frozen plan；同时保留不进入后续流程的 unsupported targets</td>
+    </tr>
+    <tr>
+      <td><code>candidate_resolution_records</code></td>
+      <td>list[CandidateResolutionRecord]</td>
+      <td>每个 target × study 的候选选择、unresolved 或 data-unavailable 审计记录</td>
+    </tr>
+    <tr>
+      <td><code>synthesis_analysis_datasets</code></td>
+      <td>list[SynthesisAnalysisDataset]</td>
+      <td>只含唯一消解且数值有效结果的统计输入数据集</td>
+    </tr>
+    <tr>
       <td><code>analysis_settings</code></td>
       <td>list[AnalysisSetting]</td>
       <td>review-level synthesis units</td>
@@ -1646,7 +1791,12 @@ GRADE 可复用 Meta Analysis workflow 的已校验 setting 和 row universe，�
     <tr>
       <td><code>study_result_rows</code></td>
       <td>list[StudyResultRow]</td>
-      <td>study-level result data；也是下游 GRADE 的 contributing study evidence 输入</td>
+      <td>Study Result Extraction 的宽召回候选结果；不是后续统计能力的直接输入</td>
+    </tr>
+    <tr>
+      <td><code>analysis_methods</code></td>
+      <td>list[AnalysisMethodDecision]</td>
+      <td>每个 setting 实际选择的 effect measure、统计方法和 analysis model</td>
     </tr>
     <tr>
       <td><code>subgroup_estimates</code></td>
@@ -1667,13 +1817,19 @@ GRADE 可复用 Meta Analysis workflow 的已校验 setting 和 row universe，�
 </table>
 
 
-### 7.4 Subtask 1: Analysis Setting Definition
+### 7.4 Meta-analysis Synthesis Planning（历史编号 Subtask 1）
 
-Analysis Setting Definition 负责从当前 review/question 的 PICO、included studies 和 cleaned articles 中，定义可用于 meta-analysis 的 final synthesis units；如提供 study-level PIO characteristics，可作为辅助上下文使用。
+Subtask 1 负责从当前 review/question 的 PICO 与 frozen screening criteria 中，定义 Meta-analysis 将提取、消解和综合哪些结果。它在 Subtask 2 读取文章结果前执行并冻结。
 
-该子任务覆盖两个概念阶段：一是 protocol-like synthesis planning，即判断当前问题下哪些 comparison、outcome、timepoint、subgroup 和 data type 值得作为候选综合维度；二是 review execution finalization，即根据已纳入研究和可用证据把候选维度落成实际可执行的 `AnalysisSetting[]`。在当前 workflow 和 benchmark 中，这两个阶段不作为两个独立模块暴露，模块边界只要求输入上游 context，输出最终 `analysis_settings`。
+该计划是完整 protocol 被拆分后的 Meta-local fragment，不负责 screening、Study PIO extraction 或 RoB planning。输入严格不包含 articles、included study IDs、Study PIO、RoB 或 observed result values，因此不会根据已观察到的结果改变 outcome、timepoint、effect measure 或 selection priorities。
 
-该子任务包含两个内部步骤：
+该能力输出 version 5 `MetaAnalysisSynthesisPlan`。LLM 负责 population scope、comparison、outcome、target-level structured timepoint、subgroup、data type、acceptable measures、continuous result frame policy、priority/selection rules、effect measure/model plan 与 rationale；工程代码生成 ID/hash 并校验契约。Subgroup target 同时冻结 `study_level`/`participant_level` scope 与 participant levels 的互斥、重叠或未知关系。Timepoint 只在 target 上保存一次；`ResultSelectionPolicy` 不重复 timepoint。Planning 不生成 within-study resolution、heterogeneity、missing-data、zero-event、fallback 或 estimator defaults，这些分别属于 Candidate Resolution、Method Selection 与 Estimation。当前只有 `Dichotomous` 与 `Continuous` 可以形成 target；其他数据形态写入 `UnsupportedSynthesisTarget[]`。Overall target 的 subgroup 为空；同一 overall 与预设 subgroup levels 共享不包含 subgroup level 的 `setting_family_id`。当 supported targets 为空时，plan 状态为 `not_plannable`，结果抽取和统计流程不执行。
+
+以下 7.4.1–7.4.2 中保留的 `CandidateSynthesisDimension`/finalization 描述属于早期设计背景，不是当前
+runtime contract；当前实现不会读取文章再 finalise Subtask 1。现行稳定契约以本节、
+`docs/contracts/meta_analysis.md` 与 domain types 为准。
+
+早期设计曾包含两个内部步骤：
 
 1. `Candidate Synthesis Dimension Generation`
 2. `Analysis Setting Finalization`
@@ -1734,12 +1890,6 @@ population_scope x comparison x outcome_concept
       <td>list[CleanedArticle]</td>
       <td>Module 2: Search &amp; Article Retrieval</td>
       <td>按 <code>included_studies</code> 过滤后的清洗正文和表格，是识别 outcome measure、timepoint、subgroup 和 data type 的主要证据源</td>
-    </tr>
-    <tr>
-      <td><code>study_characteristics</code></td>
-      <td>list[StudyPIOCharacteristics]?</td>
-      <td>Module 4: Study-level PIO Characteristics Extraction</td>
-      <td>可选辅助上下文；不作为生成 candidate 的硬依赖</td>
     </tr>
   </tbody>
 </table>
@@ -2087,12 +2237,6 @@ population_scope x comparison x outcome_concept x outcome_measure x timepoint x 
       <td>绑定同一 population、comparison、outcome、outcome measure、timepoint 和 data_type 下的 overall setting 与 sibling subgroup-level settings；不包含 subgroup level</td>
     </tr>
     <tr>
-      <td><code>candidate_id</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td>来源 <code>CandidateSynthesisDimension.candidate_id</code></td>
-    </tr>
-    <tr>
       <td><code>population_scope</code></td>
       <td>string</td>
       <td>yes</td>
@@ -2410,66 +2554,53 @@ population_scope x comparison x outcome_concept x outcome_measure x timepoint x 
 - `eligible_studies[*]` 必须能通过 study ID 连接到 Search & Article Retrieval 返回的 `CleanedArticle.study_id`。
 - `excluded_studies` 只用于记录 review-level setting 排除原因，不替代 Study Screening 的 include/exclude 判断。
 - `data_type` 描述该 setting 计划采用的数据类型，不表示已经完成数值抽取。
-- `effect_measure` 不属于 `AnalysisSetting` 输出字段；由 Analysis Model Decision 基于 setting 和已抽取的 study-level result data 决定。
+- `effect_measure` 不作为 `AnalysisSetting` 的直接字段；冻结计划通过
+  `source_context.setting_definition.planned_effect_measure` 传给 Analysis Method Decision。该阶段只校验并实现
+  计划，不从 observed result data 推断或补默认 effect measure。
+- `candidate_id` 只属于 article-local result candidate 与 resolution provenance；final `AnalysisSetting`、
+  `SubgroupEstimate`、`SubgroupDifferenceTest`、`OverallEstimate` 和 GRADE SoF row 不携带 analysis-level
+  candidate ID。Legacy benchmark 需要该评测 join key 时由 benchmark adapter 补入。
 
 ### 7.5 Subtask 2: Study-level Result Data Extraction
 
-Study-level Result Data Extraction 从每个 included study 的文章证据中，抽取该 study 在某个 analysis setting
-下贡献给 meta-analysis 的一个或多个 candidate result rows。`StudyResultTask` 是 Meta Analysis 模块内部调度对象，
-用于把 `AnalysisSetting`、study 和 article/source 绑定到一个抽取任务；它不进入最终 `MetaAnalysisResultPackage`。
+Study-level Result Data Extraction 从每个 included study 的文章证据中，抽取该 study 对全部冻结 synthesis
+targets 的候选与正式贡献。Application 以 article 为业务并发单位，Evidence Agent 一次接收全部 targets；
+`StudyResultTask`/target slot 只保留为 legacy benchmark 数据形态，不是当前 production 调度契约。
 
 任务单位：
 
 ```text
-one study x one AnalysisSetting x one article/source
+one included study/article x all frozen SynthesisTargets
 ```
 
-简单 pairwise RCT 场景下，一个 `study x analysis setting` 通常只返回一个 result item。如果同一 study 在同一
-setting 下存在多条 article-local result rows（例如 multi-arm dose arms 均对同一 comparator），method 应在同一个
-`StudyResultRow.result_items[]` 中返回多条 `StudyResultItem`。method 内部 item 粒度应对齐到 article-local
-`row x experimental arm x control arm`；外层 workflow task unit 仍保持 `one study x one AnalysisSetting x one
-article/source`。`result_items[]` 是 Subtask 2 的 canonical result container；primitive result data 只允许出现在
-`result_items[].result_data`。`candidate_results[]` 仅作为 legacy alias 保留。
+每个 target 仍产生一个 `StudyResultRow`。其 candidates 是单张表中的 article-local `ResultBlock`：同一 outcome、
+ measure/unit、timepoint、population/subgroup、analysis population、analysis input representation 和 result frame 下的全部
+arms。Review setting 较宽而文章有多个合理 blocks 时全部保留；每个 study/target 最多只有一个通过 resolution
+与 verification 的正式 `MetaAnalysisDataRow`。
 
-`StudyResultTask` 由 `AnalysisSetting.eligible_study_candidates[]` 展开生成。`extraction_targets` 是 legacy
-target-slot 计划；`extraction_hint` 是可选的非数值上下文字符串，可以来自 workflow 上游或 benchmark adapter
-按 policy 从 `extraction_hint_parts` 生成。它不得包含 result data、official row index、gold row ID 或
-benchmark-only answer，也不是评测 join key。当前 pairwise 主实验集要求 method 主要依据 `AnalysisSetting`
-和 article/raw table evidence 定位 article-local result items；当 setting 粒度不足以唯一定位时，method 应返回
-`result_items` 并使用 `match_status = possible` 表达语义兼容但未唯一确认。`possible` 不等于错误；它可能是 gold，
-也可能因为 review-level setting 本身较粗而需要下游 analysis resolution。如果 `extraction_hint` 明确给出非数值约束
-（例如 component、timepoint、study-row note 或 subgroup），method 可用它将兼容 item 标为 `matched`。明显不兼容的
-sibling records 不应进入 `result_items[]`，或应标记为 `analysis_disposition = exclude` 仅供 debug。
+Production input 不包含 benchmark gold、official row index、gold row ID 或人工答案。Benchmark adapter 只能从
+instance 的 analysis setting 构造 frozen targets，再按 article 调用相同 backend method。
 
-Method 在文章证据选择阶段应区分 direct result source 和 support source。`AnalysisSetting` 是 review-level 目标，
-可能比 article-local result setting 更宽；article 中更细粒度的 result source 可作为 `possible` result evidence
-召回，并在后续 candidate/result item 中用 `study_local_note`、`match_status` 和 resolution metadata 区分。
-不直接报告目标 result data、但可帮助解释 arms、denominators、population、timepoint、outcome definition 或方法语境的
-source 应作为 related/support evidence 保留；`related` 不表示无用或错误。只有既不是可能结果来源、也没有支持价值，
-或与目标 setting 明确冲突且没有支持价值的 source，才应在 method 内部 selection 阶段丢弃。
+当前 production method 的 candidate discovery 只读取一张当前 raw table 的 caption、
+headers、rows 与 footnotes。Abstract、Methods 和其他正文不是辅助 candidate evidence；也不得用正文映射 arm
+codes。Target 是相关性边界，不是 source-local 字段模板。Discovery 可以记录 table-local `population_or_subgroup`，并只在表格明确时记录
+`analysis_population`（统计分析集，如 ITT/mITT/PP）。当前表格不能建立某个 candidate dimension 或 arm mapping
+时，保留不确定或不返回 candidate，不从其他文本补全。Raw table 仍由 LLM 理解，不使用 deterministic table
+parsing 替代语义阅读。
 
-Agentic method 可将 selected text blocks 作为一个 text evidence bundle 进入候选生成和数值抽取；这用于让正文中的
-definition、denominator context 和 result statement 在同一语境下被读取。Table evidence 仍应以 single raw table XML
-为主要读取单元逐表处理，不应通过 deterministic table parsing 替代 LLM table understanding。
+Resolver 只读取 candidate semantics、arm labels、字段可用性和 uncertainty，不读取 numeric magnitude、effect
+direction、CI 或 P value。选中结果必须回到对应 raw table 独立验证。跨表只在 outcome/measure、timepoint、
+ analysis population、analysis input representation、result frame、subgroup、arm 和 unit 均明确相同时补缺字段，并要求每个
+字段的 candidate/table/arm provenance；randomized/baseline N 不会被代码自动改名为 analyzed N，但在原文没有更具体分母且
+没有相反失访证据时，LLM 可以选择它作为最佳支持值，并标记 inference/assumption 与范围 warning。
 
-Candidate proposal stage 应显式判断 article-local candidate 的数据类型和目标 `AnalysisSetting.data_type` 的兼容性。
-`matched` / `possible` result items 必须是 data-type compatible，或 evidence 本身确实无法判断 data type；语义相关但
-data type 明确不兼容的 source/candidate 应保留为 `related` / support trace，而不进入 primitive result extraction。
-例如 `Dichotomous` target 的 active result candidates 应可支持 events / total 或可合法推导这些字段；`Continuous`
-target 的 active result candidates 应可支持 mean / SD / total 或可合法推导这些字段。该规则是 workflow-level data
-contract，不是 source selection 阶段的硬过滤：同一 source 可以同时包含 result evidence 和 support evidence。
+Implementation note: 当前正式 benchmark method 名称仍是 `method_article_evidence_agent`（兼容名称），backend
+production factory 实际装配 `study_evidence/source_workspace_agent/`。`article_evidence_agent` 包仅保留当前
+production 仍复用的确定性核心，不再作为独立 factory method 暴露；更早的 candidate extraction + semantic
+resolution 不属于维护源码或运行时依赖，本地历史快照仅可放在被 Git 忽略的 `archive/` 中。
 
-Method 在直接抽取和 support-material extraction 之后，可以运行统一的 missing-value recovery stage。该 stage
-只面向当前 article-local `StudyResultItem` 仍缺失的 required result fields，LLM 负责基于 raw table/text evidence
-判断恢复操作类型：无需算术的语义派生、需要 calculator tool 的算术恢复、需要继续找 evidence，或不可恢复。calculator
-tool 只执行确定性算术表达式，不读取文章、不判断 clinical/statistical 语义，也不替代 raw table understanding。
-
-Implementation note: 当前正式实现是 `method_source_local_candidate_extraction`，代码位于 backend 的
-`source_local_candidate_extraction/`。该方法完成 source-local candidate discovery、material extraction、
-field resolution、need-scoped recovery、deterministic calculation 和 result-item finalization。历史实现保存在本地
-`archive/`，不属于运行时依赖，也不作为公共 method 暴露。
-recovery 输出必须保留 operation type、输入物料、source refs、semantic rationale 和 calculator trace；不确定或 scope
-不兼容时不得强行补值。
+LLM 不做最终算术。Binary 多臂合并加总 events/totals；continuous 使用样本量加权 mean 与 pooled SD，均由
+确定性代码校验和执行。不确定、字段冲突或 source identity 不完整时保持 `unresolved`。
 
 如果一个 target 对应的 study/article 报告多个可用 timepoint 或 outcome measure，应按照 `analysis_setting`
 和 target 绑定的信息选择对应 result data；不能合并不同 timepoint 或不同 outcome measure 的数据。
@@ -2884,18 +3015,17 @@ Benchmark / evaluation note:
 - benchmark gold 可以为 `StudyResultRow` 或 `study_result_candidate_sets` 附加 `review_label` 与 `audit_note`，用于标记 benchmark-side 审计结论，例如 source material 缺失、gold numeric values 不被当前 article inputs 直接支持等；这些字段不属于 method 必须输出的 workflow contract。
 - Subtask 2 benchmark 除完整行匹配指标外，还可以额外报告不含分母字段的诊断指标，例如 `target_value_only_close_rate`、`candidate_value_only_recall`，以及仅针对 `*_total` 的 denominator diagnostics；这些指标用于区分 value extraction failure 与 review-level denominator mismatch。
 - 连续型数据的 SE/CI 只能作为 deterministic calculator 的输入物料，不由 LLM 直接计算。method 应尽量区分 SE/CI 属于 arm-level group mean、arm-level change-score mean、between-group effect、adjusted model estimate 还是 unclear；只有语义 scope 与目标 arm-level field 兼容的统计量可用于推导 arm-level SD。
-- 缺失字段恢复是 Subtask 2 method 内部可选能力：LLM 可以提出 `direct_semantic_derivation` 或 `arithmetic_calculation` operation，但算术必须由 calculator tool 执行，且 recovery 不应覆盖已经可信映射的直接值。
+- 缺失字段恢复是 Subtask 2 method 内部的有界能力：工程代码从缺失的 final primitive 生成 typed material needs，LLM 只从选中的 raw support table 抄录带 scope/provenance 的材料，白名单 calculator 执行算术；recovery 不得覆盖已经可信映射的直接值。
 
 Method implementation note:
 
 - 当前 method 的任务边界与方法约束见 [Meta-analysis Subtask 2：研究级结果数据抽取契约](contracts/meta_analysis/subtask2_study_results.md)，当前源码实现与待定项见 [Meta-analysis Subtask 2：当前实现说明](implementation/meta-analysis-subtask2.md)。历史 v6-v10 设计文档只作为 archive，不再作为当前 workflow contract 的解释来源。
-- 当前只有一个公共 method：`method_source_local_candidate_extraction`，用于端到端 result item 抽取。candidate discovery 审计是该实现的内部运行/benchmark 诊断能力，不再作为第二个公共 method 暴露。历史实现位于本地 `archive/`，只用于人工审计或历史对比。
-- 表格仍以 single raw table XML 作为读取单元交给 LLM；不得用 deterministic table parsing 或清洗替代表格理解。文本 source packing、source profiling、candidate discovery、material extraction 与 recovery 都是 method 内部实现细节，不改变本节的输入输出 contract。
-- LLM skills 只负责语义判断和证据读取；工程代码负责 schema validation、trace assembly、retry/concurrency control、deterministic calculator 和 finalizer。
-- 缺失字段恢复需要区分 `semantic_derivation` 与 `arithmetic_calculation`。前者表示根据文章语义把已有 material value 继承/复用于字段，不做算术；后者必须由 deterministic calculator 执行。
-- 非算术型恢复只能作为 evidence-grounded semantic inference：LLM 可以说明为什么已有 material value 在当前 scope 下等价或可继承，但不能生成新数值；需要新数值时必须进入 calculator 或返回 evidence 不足。
+- 当前只有一个 benchmark production method：`method_article_evidence_agent`。它按 article 一次处理全部 frozen targets，返回 candidates、resolution、data rows 与 coverage，并调用 source-workspace production adapter。旧 executor 不再通过维护 factory 暴露。
+- 表格仍以 single raw table XML 作为 candidate 读取单元交给 LLM；不得用 deterministic table parsing 或清洗替代表格理解。正文只用于 StudyMap，不得作为 candidate discovery 或 arm-code mapping 证据。
+- LLM 只负责 source navigation、表格语义读取、typed supporting-material 抽取、result-blind resolution 和 selected-result verification；工程代码负责 IDs、schema、trace、retry/concurrency、cross-table gate、白名单统计转换、多臂计算和 final assembly。
+- Candidate discovery 仍严格以一张 raw table 为单元。缺失字段可从身份/作用域兼容且有显式 material provenance 的其他已选表补充；当前只允许有界的一轮 support recovery，并可由 versioned calculator 从 percentage、non-events、variance、arm-mean SE/CI 等材料转换 final primitive。LLM 不执行这些算术。
 - method 需要对所有 LLM skill 做 context budget 管理，避免把所有 sources、candidates、materials 和历史推理一次性拼入 prompt；超过预算时应记录 `context_budget_exceeded`，而不是静默截断导致误读。
-- `possible + complete result_data` 仍必须输出为 `analysis_disposition = needs_resolution`、`include_in_estimate = null`；完整数值不代表 article-local identity 已唯一解决。
+- 数值完整仍不代表 article-local identity 已唯一解决；只有 resolution 与 raw-table verification 均通过的 contribution 才生成 `MetaAnalysisDataRow`。
 
 
 `StudyResultSetting` schema:
@@ -2939,13 +3069,43 @@ Method implementation note:
       <td><code>statistic_type</code></td>
       <td>string?</td>
       <td>no</td>
-      <td>例如 baseline、final_value、change_score、follow_up 或 article-specific statistic label</td>
+      <td>代码根据 typed materials 生成的主要分析表示，例如 events/N 或 mean/SD/N</td>
+    </tr>
+    <tr>
+      <td><code>reported_statistic_type</code></td>
+      <td>string?</td>
+      <td>no</td>
+      <td>模型从原始表格读取的原始统计描述，仅用于审计</td>
+    </tr>
+    <tr>
+      <td><code>analysis_input_representation</code></td>
+      <td>string?</td>
+      <td>no</td>
+      <td>代码确定的结构化分析输入，例如 dichotomous_arm_events_total 或 continuous_arm_mean_sd_total</td>
+    </tr>
+    <tr>
+      <td><code>reported_statistic_kinds</code></td>
+      <td>string[]</td>
+      <td>no</td>
+      <td>当前结果实际报告的 typed material 类型；可以同时包含 event_count、percentage 和 p_value</td>
+    </tr>
+    <tr>
+      <td><code>statistic_type_status</code></td>
+      <td>string?</td>
+      <td>no</td>
+      <td>原始描述与材料的一致性：consistent、conflict、derived 或 unclear</td>
     </tr>
     <tr>
       <td><code>population_or_subgroup</code></td>
       <td>string?</td>
       <td>no</td>
       <td>文章内 population/subgroup/stratum label</td>
+    </tr>
+    <tr>
+      <td><code>analysis_population</code></td>
+      <td>string?</td>
+      <td>no</td>
+      <td>当前 table 明确表达的 ITT、mITT、per-protocol、as-treated 或 safety analysis set</td>
     </tr>
     <tr>
       <td><code>experimental_arm_label</code></td>
@@ -2958,6 +3118,18 @@ Method implementation note:
       <td>string?</td>
       <td>no</td>
       <td>文章内 control arm label</td>
+    </tr>
+    <tr>
+      <td><code>continuous_result_frame</code></td>
+      <td>string?</td>
+      <td>Continuous conditional</td>
+      <td><code>post_intervention</code> / <code>change_from_baseline</code> / <code>baseline</code> / <code>unclear</code>；仅来自当前 table</td>
+    </tr>
+    <tr>
+      <td><code>change_score_definition</code></td>
+      <td>string?</td>
+      <td>Continuous conditional</td>
+      <td><code>post_minus_baseline</code> / <code>baseline_minus_post</code> / <code>not_applicable</code> / <code>unclear</code></td>
     </tr>
     <tr>
       <td><code>table_local_notes</code></td>
@@ -3124,9 +3296,45 @@ Method implementation note:
 - 不输出 non-event count；如后续计算需要，由本模块内部计算。
 - 不把 SE、CI、IQR、range 直接写入 SD 字段；如需要转换，转换责任属于模块内部，但输出仍必须是 SD。
 
-### 7.6 Subtask 3: Analysis Model Decision
+### 7.5.2 Candidate Resolution 与 SynthesisAnalysisDataset
 
-Analysis Model Decision 负责在 study-level result data 已抽取后，为当前 analysis setting 确定真正进入合并计算的 studies，以及 effect measure、合并模型和统计方法。
+Subtask 2 的一个宽 review target 可以返回多个 article-local result candidates。Candidate Resolution
+负责把这些 candidates 与 frozen `SynthesisTarget` 对齐，而不是要求 Subtask 2 事先猜出唯一 gold row。
+
+任务单位：
+
+```text
+one SynthesisTarget x one included study
+```
+
+语义判断只使用 candidate setting、非数值 source locators 和 frozen structured policy，不读取
+`match_status`、`analysis_disposition`、`setting_alignment`、result values、effect direction、confidence
+interval、P value 或 numeric completeness。LLM 映射 policy items 和 dependency relationship，工程规则计算
+rank、timepoint distance、tie detection、primitive validation 与确定性合并。每个 study/target 最多产生一个
+contribution；它可以来自单个 candidate、完全重复结果的 provenance 归并，或安全的 multi-arm/subgroup 合并。
+Resolution 直接实现这些固定安全规则，不再消费 Planning 生成的 within-study policy。Target
+`population_scope` 在本阶段用于临床人群匹配；ITT/PP priority 只依据 candidate setting 明确保存的
+`analysis_population`。Candidate 未表达分析集时，Resolution 不得从 review target、正文或 arm label 猜测。
+SMD target 必须输出命名量表的高低方向及理由；非 SMD target 若 LLM 额外返回该字段，工程边界将其清空，
+因为它不参与 MD 排序、方向对齐或统计计算，不能因无害的 surplus field 中断整个 workflow。
+
+`CandidateResolutionRecord` 保留 operation、contributing/unresolved/excluded candidate IDs、applied rule
+IDs、candidate dispositions、derivation、原因和 source spans。只有 `resolved` 结果进入
+`MetaAnalysisResultPackage.meta_analysis_data_rows`（由 `SynthesisAnalysisDataset.data_row_ids` 门禁引用）；`unresolved`、`data_unavailable`、`invalid_result_data` 与
+`unsupported_dependency` 均不得进入统计计算。
+由此形成的 final `AnalysisSetting.eligible_study_ids` 只表示该 target 下已经消解并可贡献的 studies，不等于
+Study Screening 的全部 included studies。
+
+### 7.6 Subtask 3: Analysis Method Decision
+
+Analysis Method Decision 负责在 candidate resolution 完成后，仅基于 final `AnalysisSetting` 与
+`SynthesisAnalysisDataset` 中的 resolved study results，确定真正进入合并计算的 studies，以及 effect
+measure、合并模型和统计方法。
+
+Method Selection 只实现 frozen plan 的 `planned_effect_measure` 与 `clinical_model_assumption`，不提供默认 RR/MD
+或 fixed/random fallback。缺少任一 plan 字段时返回 `invalid_plan`，效应量与 data type 不兼容时返回
+`incompatible_effect_measure`。单研究 varying-effects target 仍保留 random-effects 语义，但不声称可估计
+between-study heterogeneity；prediction interval 仅对 overall random-effects 且至少五项研究时启用。
 
 该子任务不计算 pooled effect，不输出 CI、heterogeneity 数值或 subgroup difference test。它只输出后续 Subgroup Estimate Calculation 和 Overall Estimate Calculation 所需的方法配置与 evidence body 边界。
 
@@ -3158,14 +3366,14 @@ one analysis setting
     <tr>
       <td><code>analysis_setting</code></td>
       <td>AnalysisSetting</td>
-      <td>Analysis Setting Definition</td>
-      <td>当前 setting 的 comparison、outcome、timepoint 和 data_type；不包含 effect measure</td>
+      <td>Synthesis Plan + Candidate Resolution</td>
+      <td>当前 final setting 的 comparison、outcome、timepoint、data_type 与 plan provenance</td>
     </tr>
     <tr>
       <td><code>study_result_rows</code></td>
       <td>list[StudyResultRow]</td>
-      <td>Study-level Result Data Extraction</td>
-      <td>当前 setting 下已抽取的 study-level result data</td>
+      <td>SynthesisAnalysisDataset</td>
+      <td>当前 setting 下唯一消解且通过数值校验的 study-level result data</td>
     </tr>
   </tbody>
 </table>
@@ -3272,6 +3480,12 @@ one analysis setting
       <td>primary random-effects analysis 使用的 Tau² estimator；当 <code>analysis_model = random_effects</code> 时使用，例如 <code>REML</code> / <code>DerSimonian-Laird</code> / <code>Paule-Mandel</code>。同一个 <code>AnalysisMethod</code> 只选择一个 estimator</td>
     </tr>
     <tr>
+      <td><code>interval_method</code></td>
+      <td>string</td>
+      <td>yes</td>
+      <td>默认 <code>Wald</code>；显式 HKSJ 仅在 <code>k &gt; 2</code> 且 REML Tau² 大于 0 时实际采用</td>
+    </tr>
+    <tr>
       <td><code>zero_cell_handling</code></td>
       <td>ZeroCellHandling?</td>
       <td>conditional</td>
@@ -3322,7 +3536,7 @@ one analysis setting
       <td><code>note</code></td>
       <td>string</td>
       <td>yes</td>
-      <td><code>missing_required_result_data</code> / <code>incompatible_timepoint</code> / <code>incompatible_outcome_measure</code> / <code>incompatible_arm_definition</code> / <code>unsupported_data_shape</code> / <code>ambiguous_extraction</code></td>
+      <td><code>missing_required_result_data</code> / <code>unsupported_data_shape</code> / <code>ambiguous_extraction</code> / <code>incompatible_continuous_result_frame</code> / <code>uncertain_change_score_definition</code> / <code>uncertain_smd_scale_direction</code> / <code>missing_continuous_effect_alignment</code> / <code>no_relative_effect_information</code> / <code>zero_variance_risk_difference</code> / <code>multiple_estimable_results_require_resolution</code></td>
     </tr>
     <tr>
       <td><code>detail</code></td>
@@ -3371,17 +3585,16 @@ one analysis setting
 
 说明：
 
-- `analysis_model` 不由 `outcome + comparison` 单独决定，也不在 Analysis Setting Definition 阶段输出。
-- `effect_measure` 不在 Analysis Setting Definition 阶段输出；它由本子任务基于 `analysis_setting.data_type`、`analysis_setting.outcome.outcome_measure` 和 `study_result_rows` 的实际可合并性决定。
-- 对连续型数据，若 contributing studies 使用同一量表/单位，通常选择 Mean Difference；若同一 outcome concept 下使用不同量表，通常选择 Std. Mean Difference。
-- `analysis_model` 基于 `analysis_setting`、已抽取的 `study_result_rows` 和 evidence body 的可合并性假设确定。
-- `study_result_rows` 提供可用 study 数、样本量、事件数、均值/SD、zero events 和数据稀疏性等实际计算条件。
-- 本模块当前不把 `analysis_model` 作为外部输入字段。
+- `SynthesisTarget.effect_measure_plan` 必须预设效应量；Subtask 3 只做规范化、data-type compatibility 校验与技术实现。缺失时返回 <code>invalid_plan</code>，不从 contributing studies 推断 RR/MD/SMD。
+- `SynthesisTarget.analysis_model_plan` 必须冻结 common/varying-effects clinical assumption；Subtask 3 将其落实为 fixed/random analysis path，不根据 heterogeneity test 事后选模型。缺失或不受支持时返回 <code>invalid_plan</code>。
+- resolved rows 提供可用 study 数、样本量、事件数、均值/SD、zero events 和数据稀疏性等实际计算条件。
+- `analysis_model` 不是 HTTP 外部输入，而是 Meta-local frozen plan 与 Subtask 3 的内部交接字段。
 - `analysis_included_study_ids` 不是 Study Screening 的 included studies，而是当前 setting 下能够进入 effect estimate calculation 的 studies。
 - `analysis_excluded_studies` 记录 study-level result data 已抽取但不能进入合并计算的原因，不替代 Study Screening 的 include/exclude 判断。
-- `statistical_method` 和 `ci_level` 是 required；默认 CI level 为 `95%`。
+- 对 `method_status = ready` 的 method，`statistical_method` 和 `ci_level` 是 required；当前 CI level 为 `95%`。
 - `heterogeneity_estimator` 是方法选择，不是 heterogeneity 结果；同一个 `AnalysisMethod` 只选择一个 primary estimator。
-- `heterogeneity_estimator` 仅在 `analysis_model = random_effects` 时需要；默认可为 `REML`。如果 `analysis_model = fixed_effect`，可为空或 `not_applicable`。
+- `heterogeneity_estimator` 在 random-effects 且至少两项研究时为 `REML`；fixed-effect 或单研究 varying-effects setting 为空。
+- 当前 selector 使用 Wald 95% CI。Prediction interval 仅在 random-effects 且至少 5 项研究时启用。
 - 如果后续需要 sensitivity analysis，应使用额外 `AnalysisMethod` 表达，不在 `heterogeneity_estimator` 中放多个 estimator。
 - `zero_cell_handling` 仅在 `data_type = Dichotomous` 且存在 zero-cell 时需要。
 - `smd_method` 仅在 `effect_measure = Std. Mean Difference` 时需要；默认可为 `Hedges_g`。
@@ -3397,7 +3610,7 @@ Subgroup Analysis 包含两个内部任务：
 
 #### 7.7.1 Subgroup Estimate Calculation
 
-Subgroup Estimate Calculation 基于 subgroup-level `AnalysisSetting`、`AnalysisMethod` 和 `study_result_rows`，计算一个 subgroup level 的 pooled effect estimate。
+Subgroup Estimate Calculation 基于 subgroup-level `AnalysisSetting`、`AnalysisMethod` 和 `meta_analysis_data_rows`，计算单研究 effect/weight 与 subgroup pooled effect estimate。
 
 该子任务不重新决定 `effect_measure`、`analysis_model`、`statistical_method` 或 `ci_level`；这些字段来自 7.6 `AnalysisMethod`。
 
@@ -3433,7 +3646,7 @@ one subgroup-level analysis setting
       <td>当前 subgroup-level setting；<code>subgroup.factor</code> 和 <code>subgroup.level</code> 均非空</td>
     </tr>
     <tr>
-      <td><code>study_result_rows</code></td>
+      <td><code>meta_analysis_data_rows</code></td>
       <td>list[StudyResultRow]</td>
       <td>Study-level Result Data Extraction</td>
       <td>当前 subgroup-level setting 下的 study-level result data</td>
@@ -3522,12 +3735,6 @@ Data type handling:
       <td>string</td>
       <td>yes</td>
       <td>来源 <code>AnalysisMethod.method_id</code></td>
-    </tr>
-    <tr>
-      <td><code>candidate_id</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td>来源 candidate ID</td>
     </tr>
     <tr>
       <td><code>subgroup_factor</code></td>
@@ -3682,7 +3889,7 @@ Data type handling:
 - `AnalysisSetting.subgroup.factor` 和 `AnalysisSetting.subgroup.level` 必须均非空。
 - 每个 subgroup-level `AnalysisSetting` 最多生成一个 `SubgroupEstimate`。
 - `setting_family_id` 必须来自对应 `AnalysisSetting.setting_family_id`。
-- `included_study_ids` 必须来自 `analysis_method.analysis_included_study_ids`，并且必须能在 `study_result_rows` 中找到对应 extracted rows。
+- `included_study_ids` 必须来自 `analysis_method.analysis_included_study_ids`，并且必须能在 `meta_analysis_data_rows` 中找到对应 resolved rows；每个 included row 必须返回单研究 effect、CI、variance、SE 与 weight fraction。
 - `study_count = len(included_study_ids)`。
 - `participant_count` 为所有 included rows 的 `experimental_total + control_total` 之和。
 - `method_id`、`effect_measure`、`analysis_model`、`statistical_method` 和 `ci_level` 来自 Analysis Model Decision 子任务。
@@ -3697,12 +3904,17 @@ Data type handling:
 
 Subgroup Difference Test 基于同一 analysis setting family 下、同一 subgroup factor 的多个 sibling `SubgroupEstimate`，计算 subgroup levels 之间 effect difference 的统计检验。
 
+`study_level` factor 使用独立 studies 的 between-subgroup Q test。`participant_level` factor 不直接比较两个
+pooled subgroup summaries；当前只在恰好两个 levels 明确互斥且至少两项研究同时报告两层时，先计算
+within-study treatment-by-subgroup interaction，再跨研究汇总。其余 participant subgroup 仍可输出各 level
+estimate，但 formal difference test 标为不适用或配对研究不足。
+
 该内部任务不重新计算 subgroup-level estimates，不重新抽取 study-level data；它只比较已经 computed 的 sibling `SubgroupEstimate`。
 
 任务单位：
 
 ```text
-one candidate x one comparison x one outcome x one timepoint x one data_type x one effect_measure x one subgroup factor
+one setting family x one comparison x one outcome x one timepoint x one data_type x one effect_measure x one subgroup factor
 ```
 
 输入字段：
@@ -3718,12 +3930,6 @@ one candidate x one comparison x one outcome x one timepoint x one data_type x o
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td><code>candidate_id</code></td>
-      <td>string</td>
-      <td>AnalysisSetting</td>
-      <td>同一 candidate 下的 subgroup estimates</td>
-    </tr>
     <tr>
       <td><code>setting_family_id</code></td>
       <td>string</td>
@@ -3817,12 +4023,6 @@ one candidate x one comparison x one outcome x one timepoint x one data_type x o
       <td>subgroup difference test ID</td>
     </tr>
     <tr>
-      <td><code>candidate_id</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td>来源 candidate ID</td>
-    </tr>
-    <tr>
       <td><code>setting_family_id</code></td>
       <td>string</td>
       <td>yes</td>
@@ -3912,7 +4112,7 @@ one candidate x one comparison x one outcome x one timepoint x one data_type x o
 
 输出约束：
 
-- 只有同一 `setting_family_id`、candidate、comparison、outcome、timepoint、data_type、effect_measure 和 subgroup factor 下的 sibling `SubgroupEstimate` 可以参与比较。
+- 只有同一 `setting_family_id`、comparison、outcome、timepoint、data_type、effect_measure 和 subgroup factor 下的 sibling `SubgroupEstimate` 可以参与比较。
 - 只有 `estimation_status = computed` 的 `SubgroupEstimate` 可以进入 subgroup difference test。
 - 至少两个 computed `SubgroupEstimate` 才能输出 `test_status = computed`。
 - 当 `test_status = computed` 时，`chi2`、`df` 和 `p_value` 必须存在。
@@ -3921,7 +4121,7 @@ one candidate x one comparison x one outcome x one timepoint x one data_type x o
 
 ### 7.8 Subtask 5: Overall Estimate Calculation
 
-Overall Estimate Calculation 基于 overall `AnalysisSetting`、`AnalysisMethod` 和 `study_result_rows`，计算 analysis-level overall pooled effect estimate。
+Overall Estimate Calculation 基于 overall `AnalysisSetting`、`AnalysisMethod` 和 `meta_analysis_data_rows`，计算单研究 effect/weight 与 analysis-level overall pooled effect estimate。
 
 该子任务不重新决定 `effect_measure`、`analysis_model`、`statistical_method` 或 `ci_level`；这些字段来自 7.6 `AnalysisMethod`。
 
@@ -3957,7 +4157,7 @@ one overall analysis setting
       <td>当前 overall setting；<code>subgroup.factor</code> 和 <code>subgroup.level</code> 均为空</td>
     </tr>
     <tr>
-      <td><code>study_result_rows</code></td>
+      <td><code>meta_analysis_data_rows</code></td>
       <td>list[StudyResultRow]</td>
       <td>Study-level Result Data Extraction</td>
       <td>当前 overall setting 下的 study-level result data</td>
@@ -4046,12 +4246,6 @@ Data type handling:
       <td>string</td>
       <td>yes</td>
       <td>来源 <code>AnalysisMethod.method_id</code></td>
-    </tr>
-    <tr>
-      <td><code>candidate_id</code></td>
-      <td>string</td>
-      <td>yes</td>
-      <td>来源 candidate ID</td>
     </tr>
     <tr>
       <td><code>included_study_ids</code></td>
@@ -4184,7 +4378,7 @@ Data type handling:
 - `AnalysisSetting.subgroup.factor` 和 `AnalysisSetting.subgroup.level` 必须均为空。
 - 每个 overall `AnalysisSetting` 最多生成一个 `OverallEstimate`。
 - `setting_family_id` 必须来自对应 `AnalysisSetting.setting_family_id`。
-- `included_study_ids` 必须来自 `analysis_method.analysis_included_study_ids`，并且必须能在 `study_result_rows` 中找到对应 extracted rows。
+- `included_study_ids` 必须来自 `analysis_method.analysis_included_study_ids`，并且必须能在 `meta_analysis_data_rows` 中找到对应 resolved rows；每个 included row 必须返回单研究 effect、CI、variance、SE 与 weight fraction。
 - `study_count = len(included_study_ids)`。
 - `participant_count` 为所有 included rows 的 `experimental_total + control_total` 之和。
 - `method_id`、`effect_measure`、`analysis_model`、`statistical_method` 和 `ci_level` 来自 Analysis Model Decision 子任务。
@@ -4213,8 +4407,6 @@ one analysis setting / one evidence body
 ```
 
 Four-domain GRADE Assessment 负责基于当前 review/question context 和上游 workflow 产物，对每个 selected SoF row 对应的 evidence body 生成四个 GRADE downgrade domain judgements。
-
-当前可复现 GRADE benchmark 版本为 `grade_v4`。该版本仍以 Module 6 的 `MetaAnalysisResultPackage` 作为正式上游输入；benchmark 构建时如需复用 Meta Analysis 的 row universe 和 setting cleaning，必须通过 GRADE 私有 workflow root 生成，不直接读取或改写 Meta Analysis 主构建中间产物。旧 `grade_v3` 及其衍生数据仅作为本地历史归档保留，不属于当前 benchmark 数据集。
 
 当前模块覆盖四个 GRADE downgrade domains：
 
@@ -4331,9 +4523,9 @@ Module-level input:
       <td>同一 subgroup factor 下 sibling subgroup estimates 的差异检验；没有 subgroup analysis 或不可计算时可为空 list</td>
     </tr>
     <tr>
-      <td><code>study_result_rows</code></td>
+      <td><code>meta_analysis_data_rows</code></td>
       <td>yes</td>
-      <td>study-level result data；当前主要供 imprecision 判断事件数、样本量和数据稀疏性</td>
+      <td>已消解并计算的 study-level rows；matched estimate 的 <code>included_data_row_ids</code> 是各 GRADE domain 取得精确贡献行的门禁</td>
     </tr>
   </tbody>
 </table>
@@ -4347,7 +4539,7 @@ Evidence body construction:
 2. 如果 `AnalysisSetting.subgroup.factor` 和 `AnalysisSetting.subgroup.level` 均为空，则匹配同一 `setting_id` 的 `OverallEstimate`。
 3. 如果 `AnalysisSetting.subgroup` 非空，则匹配同一 `setting_id` 的 `SubgroupEstimate`。
 4. 使用 matched estimate 的 `included_study_ids` 作为当前 evidence body 的 contributing studies。
-5. 用 `included_study_ids` 过滤 `risk_of_bias` 和 `study_characteristics`；imprecision 需要时也用 `setting_id` 和 `included_study_ids` 过滤 `study_result_rows`。
+5. 用 `included_study_ids` 过滤 `risk_of_bias` 和 `study_characteristics`；需要 DataRow 的 domain 严格按 matched estimate 的 `included_data_row_ids` 和 `estimate_id` 连接 `meta_analysis_data_rows`。
 6. 对同一 evidence body 并行生成四个 domain judgements。
 
 Input constraints:
@@ -4434,10 +4626,10 @@ Module-level output `grade_result` schema:
       <td>来源 <code>AnalysisSetting.setting_family_id</code></td>
     </tr>
     <tr>
-      <td><code>candidate_id</code></td>
+      <td><code>population_scope</code></td>
       <td>string</td>
       <td>yes</td>
-      <td>来源 <code>AnalysisSetting.candidate_id</code></td>
+      <td>来源 final <code>AnalysisSetting.population_scope</code>，用于 evidence-body directness</td>
     </tr>
     <tr>
       <td><code>comparison</code></td>
@@ -4605,6 +4797,12 @@ Module-level output `grade_result` schema:
       <td>whether a concrete downgrade level can be judged from available upstream fields</td>
     </tr>
     <tr>
+      <td><code>assessment_status</code></td>
+      <td>string</td>
+      <td>yes</td>
+      <td><code>assessed</code> / <code>single_study_not_estimable</code> / <code>insufficient_evidence</code></td>
+    </tr>
+    <tr>
       <td><code>rationale</code></td>
       <td>string</td>
       <td>yes</td>
@@ -4628,6 +4826,8 @@ Output constraints:
 - `severity = serious` 对应 `levels = 1` 且 `downgraded = yes`。
 - `severity = very_serious` 对应 `levels = 2` 且 `downgraded = yes`。
 - `severity = unclear` 时，`levels` 可为 `unclear`，`downgraded` 可为 `unclear`。
+- 单研究 inconsistency 使用 `severity = not_serious`、`levels = 0`、`downgraded = no` 和
+  `assessment_status = single_study_not_estimable`；该 deterministic 分支不调用 LLM。
 - 本模块不输出 publication bias judgement，也不输出 final overall certainty label。
 - 当前 v1 中，一个 `sof_row_id` 只能对应一个 selected `setting_id`；本模块不在 row 层合并多个 settings。
 
@@ -4673,6 +4873,10 @@ Domain task definitions:
 
 #### 8.4.1 Risk of Bias Domain
 
+该 domain 判断当前 outcome/setting 对应的整个 body of evidence 是否因研究设计或实施局限而需要降低
+GRADE certainty，不重新判断单篇研究的 RoB。输入不会包含 pooled effect value、CI、heterogeneity、SoF
+结论或其它 GRADE domain 的判断。
+
 Input fields:
 
 
@@ -4700,12 +4904,24 @@ Input fields:
     </tr>
     <tr>
       <td><code>risk_of_bias</code></td>
-      <td>items filtered by <code>included_study_ids</code></td>
+      <td>items filtered by <code>included_study_ids</code>；允许 core-5、full-7 或配置子集</td>
       <td>Module 5</td>
       <td>Main evidence for this domain.</td>
     </tr>
+    <tr>
+      <td><code>study_contribution_weights</code></td>
+      <td>每项贡献研究的归一化权重；完整可用时传入，否则全部为 null</td>
+      <td>Module 6 的 included MetaAnalysisDataRow</td>
+      <td>判断高/不明确 RoB 研究对证据体的信息贡献；不得用样本量推断。</td>
+    </tr>
   </tbody>
 </table>
+
+Application 将全部 `included_study_ids` 保留为 contributing studies。没有 study-level RoB 的研究明确标记
+为 unavailable，不能按 low risk 处理；没有评估的 RoB 1 domain 同样保持 unassessed。权重完整时按
+meta-analysis contribution 判断；权重不完整、无效或不能覆盖全部 contributing studies 时按 study count
+判断且不推断权重。LLM 输出严格的
+`not_serious`、`serious`、`very_serious` 或 `not_evaluable` 语义结果，工程层确定性映射为 0/1/2 levels。
 
 
 Output field:
@@ -4746,6 +4962,12 @@ Input fields:
       <td>matching <code>setting_family_id</code>, timepoint, data type, effect measure, and subgroup factor when applicable</td>
       <td>Module 6</td>
       <td>Helps judge whether subgroup structure explains inconsistency.</td>
+    </tr>
+    <tr>
+      <td><code>study_effects</code></td>
+      <td>matched estimate 的 included <code>MetaAnalysisDataRow</code>：<code>data_row_id</code>, study effect/CI, analysis scale, <code>weight_fraction</code></td>
+      <td>Module 6</td>
+      <td>构造单研究 effect range、CI overlap、weight distribution 与 data-row coverage；不重新计算 effect 或 weight。</td>
     </tr>
   </tbody>
 </table>
@@ -4835,18 +5057,28 @@ Input fields:
     </tr>
     <tr>
       <td><code>effect_estimate</code></td>
-      <td><code>effect_value</code>, <code>ci_lower</code>, <code>ci_upper</code>, <code>effect_measure</code>, <code>ci_level</code>, <code>study_count</code>, <code>participant_count</code>, <code>prediction_interval</code> when available</td>
+      <td><code>effect_value</code>, <code>ci_lower</code>, <code>ci_upper</code>, <code>effect_measure</code>, <code>ci_level</code>, <code>participant_count</code>, <code>effect_direction_convention</code> 和 included IDs</td>
       <td>Module 6</td>
       <td>Main quantitative evidence for imprecision.</td>
     </tr>
     <tr>
-      <td><code>study_result_rows</code></td>
-      <td>rows filtered by <code>setting_id</code> and <code>included_study_ids</code></td>
+      <td><code>meta_analysis_data_rows</code></td>
+      <td>严格按 matched estimate 的 <code>included_data_row_ids</code>、<code>estimate_id</code> 和 included status 连接</td>
       <td>Module 6</td>
-      <td>Provides event counts, sample details, and raw result data needed for imprecision checks.</td>
+      <td>Provides exact event counts or continuous summary data needed for deterministic conversion and diagnostics.</td>
     </tr>
   </tbody>
 </table>
+
+正式方法先让结果盲 LLM 只根据 Analysis Setting 生成临床重要获益/伤害阈值；它不接收 Study PIO、Risk of Bias、
+pooled effect、CI、样本量或事件数。LLM 只生成正数阈值幅度，工程代码依据 Meta-analysis direction convention
+映射符号，保证 SMD 的正值获益约定与上游一致。代码随后在冻结阈值下处理 RR、OR、RD、MD、SMD，并根据 95% CI
+是否跨越一侧或两侧临床边界确定 0/1/2 级降级。RR/OR 的绝对效应只使用精确贡献行聚合的 comparator risk，OR
+不按 RR 公式换算。
+
+当 CI 不跨临床阈值时，二分类与连续型均使用同一临床阈值计算 OIS；OIS 未满足降 1 级，满足则不降级，无法计算
+返回 `unclear`。全部路径要求完整贡献行且 estimate participant count 与行内人数一致。低可信专家阈值同样返回
+`unclear`。成功 rationale 保留 CI、获益/伤害阈值、依据及 OIS；LLM/provider/结构错误仍作为该 domain 的技术失败。
 
 
 Output field:

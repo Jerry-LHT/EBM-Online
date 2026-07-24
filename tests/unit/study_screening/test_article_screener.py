@@ -11,8 +11,11 @@ from ebm_backend.online_pipeline.domain.screening import (
     ScreeningCriterionJudgmentValue,
     ScreeningCriterionType,
 )
-from ebm_backend.online_pipeline.infrastructure.methods.study_screening.article_screener import (
-    StudyScreeningArticleScreener,
+from ebm_backend.online_pipeline.infrastructure.methods.study_screening.full_text_screening_llm.article_screener import (
+    FullTextStudyArticleScreener,
+)
+from ebm_backend.online_pipeline.infrastructure.methods.study_screening.errors import (
+    StudyScreeningInvocationError,
 )
 
 
@@ -31,9 +34,11 @@ def _article() -> CleanedArticle:
 
 
 def test_article_screener_parses_criterion_judgments() -> None:
-    screener = StudyScreeningArticleScreener(
-        config={"temperature": 0},
-        llm_caller=lambda **_: {
+    captured = {}
+
+    def fake_llm(**kwargs):
+        captured["schema"] = kwargs["json_schema"]
+        return {
             "criterion_judgments": {
                 "inc_1": {
                     "judgment": "yes",
@@ -47,7 +52,11 @@ def test_article_screener_parses_criterion_judgments() -> None:
                 },
             },
             "overall_note": "Eligible article.",
-        },
+        }
+
+    screener = FullTextStudyArticleScreener(
+        config={"temperature": 0},
+        llm_caller=fake_llm,
     )
 
     result = screener.run(
@@ -63,17 +72,25 @@ def test_article_screener_parses_criterion_judgments() -> None:
     assert result.criterion_judgments[0].judgment == ScreeningCriterionJudgmentValue.YES
     assert result.criterion_judgments[1].criterion_type == ScreeningCriterionType.EXCLUSION
     assert result.overall_note == "Eligible article."
+    assert captured["schema"]["additionalProperties"] is False
 
 
 def test_article_screener_rejects_invalid_judgment() -> None:
-    screener = StudyScreeningArticleScreener(
-        config={"temperature": 0},
-        llm_caller=lambda **_: {
+    calls = 0
+
+    def invalid_llm(**_):
+        nonlocal calls
+        calls += 1
+        return {
             "criterion_judgments": {
                 "inc_1": {"judgment": "maybe", "reason": "", "evidence_spans": []},
             },
             "overall_note": "",
-        },
+        }
+
+    screener = FullTextStudyArticleScreener(
+        config={"temperature": 0},
+        llm_caller=invalid_llm,
     )
 
     try:
@@ -81,7 +98,37 @@ def test_article_screener_rejects_invalid_judgment() -> None:
             criteria=ScreeningCriteria(inclusion_criteria=["Adults"], exclusion_criteria=[]),
             article=_article(),
         )
-    except ValueError as exc:
-        assert "must be one of yes, no, unclear" in str(exc)
+    except StudyScreeningInvocationError as exc:
+        assert exc.stage == "article_screening"
+        assert exc.attempts == 2
+        assert calls == 2
     else:
         raise AssertionError("Expected ValueError")
+
+
+def test_article_screener_keeps_only_traceable_evidence_spans() -> None:
+    screener = FullTextStudyArticleScreener(
+        config={"temperature": 0},
+        llm_caller=lambda **_: {
+            "criterion_judgments": {
+                "inc_1": {
+                    "judgment": "yes",
+                    "reason": "The population is reported.",
+                    "evidence_spans": [
+                        "Adults   with hypertension.",
+                        "Adults with hypertension were enrolled.",
+                    ],
+                },
+            },
+            "overall_note": "",
+        },
+    )
+
+    result = screener.run(
+        criteria=ScreeningCriteria(inclusion_criteria=["Adults with hypertension"]),
+        article=_article(),
+    )
+
+    assert [span.text for span in result.criterion_judgments[0].source_spans] == [
+        "Adults   with hypertension."
+    ]

@@ -8,6 +8,10 @@ method 需要基于 `analysis_setting`、`study_result_rows` 和 `analysis_metho
 
 该 subtask 不抽取 study result rows，不重新选择 analysis method，也不生成 subgroup estimates。
 
+Backend production estimates 不含 analysis-level `candidate_id`。由于既有 benchmark gold 仍用该字段做 legacy
+join，module-specific production adapter 会在 backend method 返回后从 benchmark instance 补入；该字段不是
+backend runtime contract。
+
 官方 overall pooled estimate 仍作为 gold 保留；但 `study_result_rows` 使用 canonical source-row assignment。
 如果一条官方 study row 同时属于 subgroup 和 overall，builder 会优先归到 subgroup，不在 overall instance
 里重复提供该 row。

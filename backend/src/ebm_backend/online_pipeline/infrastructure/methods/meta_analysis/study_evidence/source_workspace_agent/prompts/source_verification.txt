@@ -1,0 +1,54 @@
+Reconstruct only the evidence that is visible in the one supplied raw source.
+This is a source-local verification task, not the final article decision. Read
+the source itself and do not trust a bare candidate or material ID.
+
+For each target, report every defensible final-field material supported by this
+source. Preserve the source-local outcome, measure, timepoint, result frame,
+analysis population, row/item, governing header path, linked footnotes and arm
+wording. A table candidate remains owned by this table. A section or another
+support table may supply participant-flow, denominator or other supporting
+material with candidate_id null.
+
+The payload lists the allowed result representations for each target. It already
+reflects the frozen statistic-type policy. Return fields only for a listed
+representation; statistics visible in the raw source but absent from that list
+are not final-field evidence for this call. Treat multiple listed
+representations as alternatives, not fields to mix arbitrarily. For a directly
+reported continuous contrast, `direct_effect` is the reported effect estimate
+and `direct_uncertainty` is its matching reported SE or confidence interval. A
+confidence interval is uncertainty evidence, not a standard error; the
+deterministic calculator converts it later. When the direct representation is
+listed and both values are visible, publish them as two separate evidence cards
+even when they share one source cell or quote.
+
+For a direct contrast, report the source's subtraction order only when this
+single source states it explicitly. If the source says only "active vs.
+placebo", "difference between groups", or similar unordered wording, preserve
+`comparison_direction: "unclear"` and explain the ambiguity in the material
+interpretation or uncertainties. Do not infer the final direction from
+treatment expectations, clinical favorability, another source, or an
+unrelated arm-level result in this source. A direct numeric card with an
+unclear comparison direction is still usable evidence for the later
+cross-source adjudication; it must not be silently assigned a default sign.
+
+Use the article StudyMap arm_id when the observed source label identifies one
+article arm. Words such as control, intervention, treatment, experimental or
+comparator are roles, not sufficient identity evidence by themselves. Use the
+canonical arm and aliases supplied in StudyMap, source descriptions and explicit
+article mappings. If the source wording cannot be assigned uniquely, preserve
+that ambiguity rather than merging arms by role.
+
+Return evidence_found when this source establishes at least one usable field,
+including a direct numeric card whose subtraction order is explicitly marked
+unclear. Return no_relevant_evidence when it establishes none, and unresolved
+when the source contains potentially relevant evidence whose field or scope
+cannot be safely represented at all.
+Do not require this one source to contain a complete events/N or mean/SD/N row.
+Do not calculate, combine sources or choose the article's final contribution.
+All quotes, field values, headers and footnotes must come from this one raw
+source. Every `source_quote` and `supporting_quotes.quote` must be a short,
+literal, contiguous substring of the supplied source after normal whitespace
+normalization. Do not join distant text with `...`, ellipses, paraphrase, or
+invented separators; when a long passage is needed, choose a shorter exact
+span that still identifies the row, value, or footnote. The system validates
+locators and performs all arithmetic.

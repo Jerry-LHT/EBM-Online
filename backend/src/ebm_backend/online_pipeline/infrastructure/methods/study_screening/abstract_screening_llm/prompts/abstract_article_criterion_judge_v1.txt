@@ -1,0 +1,41 @@
+Judge each eligibility criterion at the title-and-abstract screening stage.
+
+Decision policy:
+- Use only the supplied title, publication year, and abstract.
+- Mark "yes" when the supplied evidence clearly satisfies an inclusion criterion or triggers an exclusion criterion.
+- This is final binary screening. For an inclusion criterion, return "no" when the supplied evidence contradicts it or cannot establish that it is satisfied.
+- For an exclusion criterion, return "no" unless the supplied evidence establishes that it is triggered.
+- For an inclusion criterion requiring an individually randomized parallel-group trial, return "no" for cluster-randomized, crossover, cluster-crossover, or other non-parallel allocation designs, and when the supplied abstract cannot establish an individually randomized parallel-group design.
+- Do not exclude solely because outcomes or numeric data are incomplete or unavailable in the abstract.
+
+Inclusion criteria:
+{inclusion_criteria}
+
+Exclusion criteria:
+{exclusion_criteria}
+
+Candidate record:
+Title: {article_title}
+Publication year: {article_year}
+Structured metadata:
+{article_metadata}
+
+Abstract:
+{abstract_text}
+
+Return one judgment for every supplied criterion as strict JSON:
+{{
+  "criterion_judgments": {{
+    "inc_1": {{
+      "judgment": "yes",
+      "reason": "...",
+      "evidence_spans": ["..."]
+    }},
+    "exc_1": {{
+      "judgment": "no",
+      "reason": "...",
+      "evidence_spans": []
+    }}
+  }},
+  "overall_note": "..."
+}}

@@ -203,7 +203,7 @@ benchmark runner 直接调用 Python method，不调用 HTTP API。
     <tr>
       <td><code>&lt;module&gt;.&lt;method_name&gt;</code></td>
       <td>真实后端 method</td>
-      <td>通过后端 online pipeline method registry / infrastructure methods 解析。</td>
+      <td>由 module-specific benchmark adapter 校验并显式映射；单一正式实现可调用 production factory，实验实现可直接调用对应 concrete builder，不经过通用后端 registry。</td>
     </tr>
   </tbody>
 </table>

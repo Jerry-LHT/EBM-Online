@@ -15,7 +15,7 @@ from ebm_backend.online_pipeline.domain.serialization import to_jsonable
 from benchmark.online_pipeline.grade.risk_of_bias_downgrade.evaluation.io import load_dataset
 from benchmark.online_pipeline.grade.risk_of_bias_downgrade.evaluation.metrics import build_comparisons, evaluate_predictions
 from benchmark.online_pipeline.shared.jsonl import write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
+from benchmark.online_pipeline.grade.method_adapter import load_grade_domain_benchmark_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
 
@@ -57,7 +57,11 @@ def run_benchmark(
         stop = None if limit is None else start + max(0, int(limit))
         instances = instances[start:stop]
         gold_by_id = {str(instance["instance_id"]): gold_by_id[str(instance["instance_id"])] for instance in instances}
-    method_obj = None if method in {"gold", "grade.gold", "oracle"} else load_method(method, default_module=MODULE_NAME)
+    method_obj = (
+        None
+        if method in {"gold", "grade.gold", "oracle"}
+        else load_grade_domain_benchmark_method("risk_of_bias", method)
+    )
     predictions = [
         _predict(
             instance=instance,
@@ -110,7 +114,7 @@ def _predict(*, instance: dict[str, Any], gold: dict[str, Any], method: str, met
             "domain": instance["domain"],
             "judgement": gold.get("judgement") or {},
         }
-    method_obj = method_obj or load_method(method, default_module=MODULE_NAME)
+    method_obj = method_obj or load_grade_domain_benchmark_method("risk_of_bias", method)
     if not hasattr(method_obj, "run_instance"):
         raise TypeError("GRADE domain benchmark methods must implement run_instance(instance=...).")
     output = method_obj.run_instance(instance=instance)

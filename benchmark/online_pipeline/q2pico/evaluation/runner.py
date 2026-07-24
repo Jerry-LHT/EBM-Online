@@ -16,7 +16,7 @@ from benchmark.online_pipeline.q2pico.evaluation.io import load_dataset
 from benchmark.online_pipeline.q2pico.evaluation.judge import judge_predictions
 from benchmark.online_pipeline.q2pico.evaluation.metrics import evaluate_match_rows
 from benchmark.online_pipeline.shared.jsonl import read_jsonl, write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
+from benchmark.online_pipeline.q2pico.evaluation.method_adapter import load_q2pico_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
 
@@ -43,7 +43,7 @@ def run_benchmark(
     if limit is not None:
         instances = instances[:limit]
         gold_by_id = {str(instance["instance_id"]): gold_by_id[str(instance["instance_id"])] for instance in instances}
-    method_obj = None if method in {"gold", "q2pico.gold"} else load_method(method, default_module="q2pico")
+    method_obj = None if method in {"gold", "q2pico.gold"} else load_q2pico_method(method)
     completed_before_resume = _completed_instance_ids(run_dir / "judge_matches.jsonl") if resume else set()
 
     predictions: list[dict[str, Any]] = []

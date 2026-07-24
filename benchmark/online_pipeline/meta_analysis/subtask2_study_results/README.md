@@ -9,32 +9,49 @@ Backend runtime code does not depend on benchmark datasets or evaluation code.
 The single public method is:
 
 ```text
-method_source_local_candidate_extraction
+method_article_evidence_agent
 ```
 
 Its implementation is under:
 
 ```text
 backend/src/ebm_backend/online_pipeline/infrastructure/methods/meta_analysis/
-  subtask2_study_results/source_local_candidate_extraction/
+  study_evidence/source_workspace_agent/
 ```
 
-Historical methods and experiments are local-only under `archive/`. They are
-not runtime dependencies and are excluded from version control.
+The method name is retained for benchmark compatibility; the adapter now builds
+the backend production source-workspace method. The previous article-evidence
+executor is not exposed by a maintained factory.
+
+Historical methods and experiments are local-only under the benchmark
+`archive/`. They are not runtime dependencies and are excluded from version
+control.
 
 ## Contract
 
-The benchmark supplies the backend method with:
+The benchmark adapter groups targets by article and supplies the backend method with:
 
-- the review analysis setting;
-- one study/article extraction task;
-- optional non-numeric extraction hints;
-- linked article text and raw table XML.
+- frozen targets derived from the review analysis setting;
+- one study/article and the review/plan identifiers;
+- a linked article container whose raw table XML is the method's current evidence
+  boundary; article prose is not supplied to candidate discovery or repair.
 
-The method returns `StudyResultRow[]`. Each row contains one `result_items[]`
+The method returns article evidence containing `StudyResultRow[]`, resolution records,
+resolved data rows, and coverage. The benchmark evaluates `StudyResultRow[]`; each row contains one `result_items[]`
 list. A result item preserves an article-local candidate setting and contains
 all currently supported numeric fields in `result_data`. A broad review setting
 may legitimately produce multiple `possible` result items.
+
+The production method may retain directly reported intermediate materials such as
+percentages, sample-size types, variances, arm-mean SEs, and arm-mean CIs. Backend
+versioned calculators, not the model or benchmark adapter, perform the allowed
+conversions and preserve formula/material provenance. Benchmark gold remains an
+evaluation input only and is never imported by backend runtime.
+
+The benchmark may retain a review-level `population_scope`, but the production
+target remains a relevance boundary rather than an article-fact template. Candidates
+record table-local clinical population/subgroup separately from an explicitly reported
+statistical analysis population such as ITT or per-protocol.
 
 The method must not read benchmark gold, benchmark row indexes, or evaluation
 artifacts.
@@ -70,8 +87,8 @@ Run the fast regression split:
 ```bash
 PYTHONPATH=backend/src:. python benchmark/online_pipeline/meta_analysis/subtask2_study_results/evaluation/runner.py \
   --dataset benchmark/online_pipeline/meta_analysis/subtask2_study_results/datasets/cochrane_meta_v2-key-filter-dev4/splits/dev4 \
-  --method method_source_local_candidate_extraction \
-  --run-id source_local_dev4 \
+  --method method_article_evidence_agent \
+  --run-id article_evidence_dev4 \
   --hint-policy full
 ```
 
@@ -80,8 +97,8 @@ Run the audited test split with timeout/resume orchestration:
 ```bash
 PYTHONPATH=backend/src:. python benchmark/online_pipeline/meta_analysis/subtask2_study_results/evaluation/run_instances_with_timeout.py \
   --dataset benchmark/online_pipeline/meta_analysis/subtask2_study_results/datasets/cochrane_meta_v2-key-filter-test78/splits/test78 \
-  --method method_source_local_candidate_extraction \
-  --run-id source_local_test78 \
+  --method method_article_evidence_agent \
+  --run-id article_evidence_test78 \
   --timeout-seconds 1800 \
   --workers 2 \
   --hint-policy full \

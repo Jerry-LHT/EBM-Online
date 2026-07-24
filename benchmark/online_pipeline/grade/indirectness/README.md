@@ -18,8 +18,10 @@ Each instance represents one aligned SoF row. Predictions provide
 ```bash
 PYTHONPATH=backend/src:. python benchmark/online_pipeline/grade/indirectness/evaluation/runner.py \
   --dataset benchmark/online_pipeline/grade/indirectness/datasets/grade_v4/splits/smoke \
-  --method method_llm \
+  --method gold \
   --run-id grade_v4_indirectness_smoke
 ```
 
-Historical v3 datasets and experiments are local-only under `grade/archive/`.
+The historical `method_llm` and `method_llm_twostep` implementations are not
+maintained benchmark methods. Local snapshots belong under an ignored
+`archive/` directory.

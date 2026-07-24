@@ -8,5 +8,5 @@ from ebm_backend.online_pipeline.domain.question import QuestionPICO
 
 
 class Q2PICOPort(Protocol):
-    def run(self, *, question_text: str, expand_outcomes: bool = False) -> QuestionPICO:
+    def run(self, *, question_text: str, expand_outcomes: bool = True) -> QuestionPICO:
         ...

@@ -9,11 +9,8 @@ from ebm_backend.online_pipeline.application.use_cases.run_search_retrieval impo
 )
 from ebm_backend.online_pipeline.domain.module_config import ModuleRunConfig
 from ebm_backend.online_pipeline.domain.question import QuestionPICO
-from ebm_backend.online_pipeline.domain.search import SearchRetrievalOptions
 from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.factory import (
-    build_search_mesh_mapping_method,
-    build_search_retrieval_method,
-    build_search_textword_expansion_method,
+    build_search_retrieval_source,
 )
 
 
@@ -23,25 +20,26 @@ RUN_LIVE_NCBI_TESTS = os.getenv("RUN_LIVE_NCBI_TESTS") == "1"
 @pytest.mark.skipif(not RUN_LIVE_NCBI_TESTS, reason="Set RUN_LIVE_NCBI_TESTS=1 to run live NCBI tests.")
 def test_search_retrieval_live_ncbi_smoke() -> None:
     result = RunSearchRetrieval(
-        retrieval_method=build_search_retrieval_method(method_name="pubmed_pmc"),
-        mesh_mapping_method=build_search_mesh_mapping_method(method_name="official"),
-        textword_expansion_method=build_search_textword_expansion_method(method_name="official"),
+        retrieval_sources=(
+            build_search_retrieval_source(source_name="pubmed"),
+        ),
     ).execute(
         question_pico=QuestionPICO(
             P=["Adults with hypertension"],
             I=["aerobic exercise"],
             O=["blood pressure"],
         ),
-        config=ModuleRunConfig(max_results=3),
-        options=SearchRetrievalOptions(
-            mesh_method_name="official",
-            textword_method_name="official",
+        config=ModuleRunConfig(
+            max_candidates_per_source=20,
+            max_results_per_source=3,
         ),
     )
 
-    assert result.search_query
-    assert result.query_used
-    assert result.database == "pubmed"
-    assert result.total_hits >= result.returned_count
+    assert len(result.source_results) == 1
+    source_result = result.source_results[0]
+    assert source_result.search_query
+    assert source_result.query_used
+    assert source_result.source_name == "pubmed"
+    assert source_result.total_hits >= source_result.returned_count
     assert result.articles
     assert all(article.metadata.pmc_id for article in result.articles)

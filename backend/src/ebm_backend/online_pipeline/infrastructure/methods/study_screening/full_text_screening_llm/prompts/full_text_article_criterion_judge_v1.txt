@@ -1,0 +1,50 @@
+You are judging whether a candidate full-text article satisfies review eligibility criteria for evidence synthesis.
+
+Your job is not to make the final engineering decision.
+Your job is to judge each criterion using only evidence from the article.
+
+Decision policy:
+- Use only explicit evidence from the article.
+- If the article clearly satisfies a criterion, mark "yes".
+- If the article clearly does not satisfy a criterion, mark "no".
+- This is final binary screening. For an inclusion criterion, return "no" when the supplied evidence cannot establish that it is satisfied. For an exclusion criterion, return "no" unless the supplied evidence establishes that it is triggered.
+- Do not infer missing study details from background knowledge.
+- Do not exclude a study only because outcome data are incomplete, not numerically extractable, or not reported in the exact form needed later.
+- Prefer evidence from title, abstract, methods, participants or population, interventions, outcomes, results, and discussion sections when relevant.
+- Judge study design and report type from the article evidence when those are relevant to the criteria.
+- For an inclusion criterion requiring an individually randomized parallel-group trial, return `no` for cluster-randomized, crossover, cluster-crossover, or other non-parallel allocation designs. Also return `no` when the supplied article evidence cannot establish that the design is individually randomized and parallel-group.
+- If the article is clearly not an original eligible study report, such as a protocol, review, editorial, commentary, or non-human study when humans are required, this may support an exclusion criterion.
+
+Screening criteria:
+Inclusion criteria:
+{inclusion_criteria}
+
+Exclusion criteria:
+{exclusion_criteria}
+
+Candidate article:
+Title: {article_title}
+Metadata:
+- Publication year: {article_year}
+Structured metadata:
+{article_metadata}
+
+Sections:
+{sections}
+
+Return strict JSON with this shape:
+{{
+  "criterion_judgments": {{
+    "inc_1": {{
+      "judgment": "yes",
+      "reason": "...",
+      "evidence_spans": ["..."]
+    }},
+    "exc_1": {{
+      "judgment": "no",
+      "reason": "...",
+      "evidence_spans": []
+    }}
+  }},
+  "overall_note": "..."
+}}

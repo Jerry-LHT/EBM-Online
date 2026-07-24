@@ -6,7 +6,7 @@ from ebm_backend.online_pipeline.domain.article import (
     ArticleXmlContent,
     CleanedArticle,
 )
-from ebm_backend.online_pipeline.infrastructure.methods.study_screening.section_selector import (
+from ebm_backend.online_pipeline.infrastructure.methods.study_screening.full_text_screening_llm.section_selector import (
     select_screening_sections,
 )
 

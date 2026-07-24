@@ -1,0 +1,22 @@
+Stage: precise full-text eligibility and synthesis-readiness assessment.
+
+Screening criteria:
+{criteria}
+
+Frozen synthesis targets:
+{targets}
+
+Target keys in the response correspond to the targets above by position. Do not invent additional targets.
+
+Targeted article evidence (selected prose and original raw table XML):
+{evidence}
+
+For each inclusion and exclusion criterion, return a binary yes/no judgment from the supplied evidence. For an inclusion criterion, "no" means the full-text evidence does not establish that required condition. For an exclusion criterion, "yes" means it is present.
+
+Separately classify each frozen target:
+- current_meta_supported: the target matches and the supplied evidence establishes an accepted representation. Accepted representations include binary events and analyzed N for both arms; continuous mean, SD, and analyzed N for both arms; deterministically derivable compatible arm-level inputs; or a directly reported compatible effect estimate with CI or SE suitable for generic inverse-variance analysis.
+- needs_meta_investigation: the target appears eligible and potentially analyzable, but partial source coverage, cross-source binding, arm aliases, denominator scope, timepoint, result frame, or uncertainty requires the Meta evidence agent to inspect the raw sources before a final decision.
+- methodologically_eligible_unsupported: the target is eligible and quantitative evidence is established, but its representation is known to be outside the current runtime contract.
+- not_eligible: positive evidence establishes that the target does not match, or complete relevant evidence establishes that the target was not reported.
+
+Do not perform arithmetic and do not guess missing denominators, uncertainty, arms, outcome frames, or timepoints. Distinguish randomized/baseline N from analyzed outcome N. A target may rely on compatible evidence across the supplied sources, but every supporting quote retains its own source. Missing evidence in a source explicitly marked partial cannot establish absence; use needs_meta_investigation when the target is otherwise plausible. Return short verbatim evidence spans copied from the supplied evidence; do not emit source IDs.

@@ -18,7 +18,7 @@ from benchmark.online_pipeline.grade.inconsistency.evaluation.metrics import bui
 from benchmark.online_pipeline.shared.jsonl import write_jsonl
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
-from ebm_backend.online_pipeline.infrastructure.methods.grade.loader import get_grade_domain_method
+from benchmark.online_pipeline.grade.method_adapter import load_grade_domain_benchmark_method
 
 
 MODULE_NAME = "grade"
@@ -153,8 +153,7 @@ def _run_method_instance(*, method_obj: Any, method_instance: dict[str, Any]) ->
 
 
 def _load_inconsistency_method(method: str) -> Any:
-    method_name = method.split(".", 1)[1] if method.startswith(f"{DOMAIN_NAME}.") else method
-    return get_grade_domain_method(DOMAIN_NAME, method_name)
+    return load_grade_domain_benchmark_method(DOMAIN_NAME, method)
 
 
 def _dict_value(value: Any) -> dict[str, Any]:

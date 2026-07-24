@@ -18,15 +18,16 @@ Use a project-local virtual environment. Do not run this branch from a shared
 Anaconda/base environment, because benchmark builders depend on binary packages
 such as `numpy`, `pandas`, and `pyarrow` that must be installed together.
 
+Python 3.11 is the repository runtime baseline. The current environment and full
+backend test suite are verified with Python 3.11.14. Do not use Python 3.13+ for
+this branch; it is outside the maintained runtime contract.
+
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
-
-If `python3.11` is not available, Python 3.10 or 3.12 is also acceptable. Avoid
-Python 3.13+ until the scientific Python stack used by the builders is verified.
 
 Quick environment check:
 
@@ -104,6 +105,15 @@ PYTHONPATH=backend/src:. python -m benchmark.online_pipeline.benchmark run \
 
 ## Tests
 
+Run the complete backend verification suite:
+
+```bash
+PYTHONPATH=backend/src:. pytest -q tests/unit tests/integration
+```
+
+The maintained test baseline targets Python 3.11. Opt-in live dependency tests
+remain skipped unless their explicit switches are enabled.
+
 Focused config checks:
 
 ```bash
@@ -114,8 +124,13 @@ Module and benchmark tests can be run selectively depending on the area being ch
 
 ## API Boundary
 
-This branch exposes module-level HTTP APIs only. It does not expose workflow-level
-or subtask-level HTTP endpoints.
+This branch exposes both module-level HTTP APIs and `POST /workflow` for one
+complete evidence-chain run. Subtask-level HTTP endpoints are not exposed.
+
+The workflow response retains every completed business artifact when a later
+stage fails. Retrieved `CleanedArticle` objects and full text remain internal
+evidence inputs; the response contains only a retrieval summary and study IDs,
+not raw article content or article metadata.
 
 Current module API status:
 

@@ -1,0 +1,53 @@
+{
+  "fixture_source": "Copied from the cochrane_meta_v2 smoke gold case CD001431::4::6; backend tests do not import benchmark code.",
+  "setting": {
+    "setting_id": "setting::CD001431::4::6::subgroup::2",
+    "setting_family_id": "setting-family::CD001431::4::6",
+    "candidate_id": "candidate::CD001431::4::6",
+    "comparison": {
+      "experimental": "decision support intervention",
+      "comparator": "usual care"
+    },
+    "outcome": {
+      "label": "Decisional conflict",
+      "measure": "Decisional Conflict Scale"
+    },
+    "timepoint": {"label": null},
+    "subgroup": {
+      "factor": "study period",
+      "level": "Newer studies (2015-2022)"
+    },
+    "data_type": "Continuous",
+    "eligible_study_ids": ["Hoffman 2017", "Kunneman 2020"]
+  },
+  "study_result_rows": [
+    {
+      "row_id": "row::CD001431::4::6::773::subgroup--2",
+      "setting_id": "setting::CD001431::4::6::subgroup::2",
+      "study_id": "Hoffman 2017",
+      "data_type": "Continuous",
+      "result_data": {
+        "experimental_mean": 16.7,
+        "experimental_sd": 28.1,
+        "experimental_total": 58,
+        "control_mean": 38.9,
+        "control_sd": 40.0,
+        "control_total": 28
+      }
+    },
+    {
+      "row_id": "row::CD001431::4::6::775::subgroup--2",
+      "setting_id": "setting::CD001431::4::6::subgroup::2",
+      "study_id": "Kunneman 2020",
+      "data_type": "Continuous",
+      "result_data": {
+        "experimental_mean": 16.6,
+        "experimental_sd": 16.1,
+        "experimental_total": 463,
+        "control_mean": 18.8,
+        "control_sd": 17.1,
+        "control_total": 459
+      }
+    }
+  ]
+}

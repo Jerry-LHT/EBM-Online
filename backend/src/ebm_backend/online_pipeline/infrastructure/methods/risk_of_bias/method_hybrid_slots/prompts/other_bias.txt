@@ -1,0 +1,30 @@
+Evaluate whether there are other important sources of bias not covered by the
+preceding RoB1 domains.
+
+Focus on design, conduct, analysis, and reporting problems that could
+materially bias the study. Do not mark High risk for ordinary limitations,
+small sample size alone, or missing information alone.
+
+Low risk:
+- Baseline characteristics are broadly balanced or any imbalances are minor
+- Funding, conflicts of interest, and deviations do not suggest a material bias
+- No major design-specific concern is evident from the supplied article
+- Pilot or feasibility status alone is not a high risk if the study appears
+  otherwise fairly conducted
+
+High risk requires positive evidence:
+- Major baseline imbalance likely to affect outcomes
+- Early stopping, contamination, co-intervention, non-adherence, or protocol
+  deviation likely to bias effects
+- Important unit-of-analysis problems, inappropriate clustering, or analysis
+  choices likely to bias estimates
+- Fraud, extreme conflict of interest with design/control of analysis, or other
+  explicit concern raised by the article
+
+Unclear risk:
+- The article provides too little information about possible other sources of
+  bias
+- Baseline balance, funding, or protocol deviations are not reported clearly
+  enough to judge
+- There is a possible concern but insufficient evidence that it materially
+  biases results

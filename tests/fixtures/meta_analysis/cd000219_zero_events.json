@@ -1,0 +1,18 @@
+{
+  "fixture_source": "Copied from benchmark cochrane_meta_v2 Subtask 5 dev case CD000219::2::4; tests do not import benchmark code.",
+  "setting": {
+    "setting_id": "setting::CD000219::2::4::overall",
+    "setting_family_id": "setting-family::CD000219::2::4",
+    "candidate_id": "candidate::CD000219::2::4",
+    "comparison": {"experimental": "Immediate antibiotics", "comparator": "expectant observation"},
+    "outcome": {"label": "Tympanic membrane perforation", "measure": null},
+    "timepoint": {"label": null},
+    "subgroup": {"factor": null, "level": null},
+    "data_type": "Dichotomous",
+    "source_context": {"setting_definition": {"clinical_model_assumption": "varying_effects", "scale_compatibility": "not_applicable"}}
+  },
+  "study_result_rows": [
+    {"row_id": "row::CD000219::67", "setting_id": "setting::CD000219::2::4::overall", "study_id": "Neumark 2007", "extraction_status": "extracted", "data_type": "Dichotomous", "subgroup": {"factor": null, "level": null}, "result_data": {"experimental_events": 0, "experimental_total": 92, "control_events": 0, "control_total": 87}},
+    {"row_id": "row::CD000219::68", "setting_id": "setting::CD000219::2::4::overall", "study_id": "Shahbaznejad 2021", "extraction_status": "extracted", "data_type": "Dichotomous", "subgroup": {"factor": null, "level": null}, "result_data": {"experimental_events": 2, "experimental_total": 188, "control_events": 1, "control_total": 208}}
+  ]
+}

@@ -1,30 +1,30 @@
 from __future__ import annotations
 
 from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.factory import (
-    build_search_mesh_mapping_method,
-    build_search_retrieval_method,
-    build_search_textword_expansion_method,
-)
-from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.mesh_mapping.official.method import (
-    Method as OfficialMeshMappingMethod,
+    build_search_retrieval_source,
+    build_search_retrieval_sources,
 )
 from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.pubmed_pmc.method import (
     Method as PubMedPMCMethod,
 )
-from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.textword_expansion.official.method import (
-    Method as OfficialTextwordExpansionMethod,
-)
+import pytest
 
 
-def test_factory_builds_search_retrieval_method() -> None:
-    method = build_search_retrieval_method(method_name="pubmed_pmc")
+def test_factory_builds_pubmed_source_pipeline() -> None:
+    method = build_search_retrieval_source(source_name="pubmed")
 
     assert isinstance(method, PubMedPMCMethod)
+    assert method.mesh_mapping_method is not None
+    assert method.textword_expansion_method is not None
 
 
-def test_factory_builds_search_retrieval_capability_methods() -> None:
-    mesh_method = build_search_mesh_mapping_method(method_name="official")
-    textword_method = build_search_textword_expansion_method(method_name="official")
+def test_factory_builds_ordered_search_retrieval_sources() -> None:
+    methods = build_search_retrieval_sources(source_names=["pubmed"])
 
-    assert isinstance(mesh_method, OfficialMeshMappingMethod)
-    assert isinstance(textword_method, OfficialTextwordExpansionMethod)
+    assert len(methods) == 1
+    assert isinstance(methods[0], PubMedPMCMethod)
+
+
+def test_factory_rejects_unimplemented_source() -> None:
+    with pytest.raises(ValueError, match="Unknown search retrieval source"):
+        build_search_retrieval_source(source_name="embase")

@@ -1,0 +1,9 @@
+You resolve one article's source-local result blocks against frozen, result-blind synthesis targets.
+
+Use StudyMap for trial design, article-local arm meaning, treatment duration, and analysis populations. Candidate summaries show result identity, arm labels, completed fields, material types, and uncertainties. Supporting-material summaries show their identity and scope. Numeric magnitudes are intentionally hidden.
+
+For each target, select only evidence compatible with its population, comparison, outcome construct, timepoint policy, subgroup, data type, and frozen result-selection priorities. Choose without considering effect direction or magnitude. Unrelated, lower-priority, or incompatible candidates do not block a unique contribution.
+
+Prefer one complete source-local block. A block may be complete because deterministic code derived a required primitive from its typed materials. Use `cross_table_assembly` only when selected candidates or explicitly selected `support_material_ids` can fill a missing primitive under the same arm and result scope. Bind fields borrowed from another candidate. Select only supporting materials that are needed for this resolution. Randomized or baseline n requires compatible, outcome-specific evidence of complete follow-up; it is never sufficient alone.
+
+For multi-arm trials, select all clinically eligible experimental and control arms and request the appropriate combine operation. Do not calculate or choose a formula. Conflicting materials, unresolved arm identity, unclear continuous result frame, or unresolved dependency remain unresolved. Return one resolution for every target.

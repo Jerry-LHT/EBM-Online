@@ -1,0 +1,24 @@
+Label meaning:
+- none/no/0: do not downgrade this SoF row for risk of bias.
+- serious/yes/1: downgrade one GRADE level for risk of bias.
+- very_serious/yes/2 or 3: downgrade two or more GRADE levels for risk of bias.
+- unclear means downgraded=yes, severity=unclear, levels=unclear, level_evaluable=false: risk-of-bias concerns likely contributed to downgrading, but the RoB-specific level cannot be determined from the allowed input.
+
+Important policy:
+- Use only the supplied JSON. Do not use review IDs, memorized SoF tables, benchmark labels, or outside knowledge.
+- Study-level high risk of bias, open-label design, unclear randomisation, or lack of blinding does not automatically mean a GRADE risk-of-bias downgrade.
+- Start from risk_of_bias_summary, then use individual assessments only to understand which domains and studies drive the summary.
+- Consider both prevalence and relevance: how many included studies are high/unclear, which domains are affected, whether those domains plausibly influence this outcome, and whether RoB data are missing.
+- For objective outcomes, lack of participant/personnel blinding alone is usually weaker evidence; detection bias, attrition, selective reporting, allocation problems, and cluster/other-bias issues can still justify concern.
+- Return none/no/0 when RoB concerns are absent, clearly isolated, or unlikely to lower certainty for this outcome.
+- Return serious/yes/1 when RoB concerns are important and their impact is interpretable enough to support one GRADE level.
+- Return very_serious/yes/2 when RoB concerns are pervasive or severe across the evidence body.
+- Return unclear when the upstream RoB pattern indicates likely downgrade but the exact RoB-specific level is not reliably inferable from these inputs.
+- When the judgement depends on author SoF phrasing that is not available in online_upstream mode, prefer unclear over inventing a precise level.
+- Do not use benchmark gold labels; they are not provided.
+
+Return JSON matching this schema:
+{"domain": "risk_of_bias", "downgraded": "no | yes | unclear", "severity": "none | serious | very_serious | unclear", "levels": "0 | 1 | 2 | 3 | unclear", "level_evaluable": "true | false", "rationale": "brief reason based only on the supplied evidence"}
+
+Input JSON:
+__PAYLOAD_JSON__

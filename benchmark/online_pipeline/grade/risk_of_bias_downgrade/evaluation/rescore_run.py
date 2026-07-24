@@ -15,7 +15,7 @@ from benchmark.online_pipeline.grade.risk_of_bias_downgrade.evaluation.io import
 from benchmark.online_pipeline.grade.risk_of_bias_downgrade.evaluation.metrics import build_comparisons, evaluate_predictions
 from benchmark.online_pipeline.grade.risk_of_bias_downgrade.evaluation.runner import _write_run
 from benchmark.online_pipeline.shared.jsonl import read_jsonl
-from ebm_backend.online_pipeline.infrastructure.methods.grade.risk_of_bias import method_llm
+from ebm_backend.online_pipeline.infrastructure.methods.grade.risk_of_bias.method_llm import pipeline as method_llm
 
 
 DOMAIN_DIR = Path(__file__).resolve().parents[1]

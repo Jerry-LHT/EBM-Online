@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from ebm_backend.online_pipeline.infrastructure.methods.q2pico.method import build_method
+from ebm_backend.online_pipeline.infrastructure.methods.q2pico.split_slot_llm.method import (
+    build_method,
+)
 
 
-def build_q2pico_method(*, method_name: str):
-    if method_name != "default":
-        raise ValueError(f"Unknown method '{method_name}' for module 'q2pico'")
+def build_production_q2pico():
+    """Build the Q2PICO adapter approved for the product API."""
     return build_method()

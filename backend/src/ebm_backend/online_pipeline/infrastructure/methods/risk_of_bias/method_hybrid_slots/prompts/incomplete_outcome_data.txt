@@ -1,0 +1,21 @@
+Evaluate whether attrition, withdrawals, exclusions, or missing data could bias the result for outcomes of interest.
+
+Use actual reported numbers about post-randomization attrition on analysed outcomes: per-arm randomized versus analysed, reasons for loss, and time horizon. If those numbers are not in the paper, usually judge Unclear, not High.
+
+Low risk:
+- Essentially complete follow-up, loss <= about 10%, no meaningful arm imbalance
+- Loss <= about 20%, balanced across arms, reasons not outcome-related
+- Appropriate missing-data handling and attrition is moderate
+- ITT analysis combined with low or balanced attrition
+
+High risk requires reported numbers establishing bias:
+- Total loss >= about 30% on analysed outcome with no convincing missing-data analysis
+- Differential loss >= about 10 percentage points between arms
+- Loss > about 20% and differential >= about 5 percentage points
+- Attrition imbalance with reasons plausibly related to outcome
+- Per-protocol/as-treated analysis materially deviating from random assignment
+
+Unclear risk:
+- No CONSORT flow and no per-arm analysed numbers
+- Only ITT is stated, with no numbers and no flow
+- Attrition mentioned but reasons, per-arm split, or size cannot be inferred

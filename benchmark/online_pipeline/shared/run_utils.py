@@ -16,9 +16,10 @@ from ebm_backend.online_pipeline.domain.screening import ScreeningCriteria
 from ebm_backend.online_pipeline.domain.serialization import to_jsonable
 from ebm_backend.online_pipeline.domain.serialization import from_jsonable
 from ebm_backend.online_pipeline.domain.study_characteristics import StudyPIOCharacteristics
-
+from benchmark.online_pipeline.search_retrieval.evaluation.method_adapter import (
+    load_search_retrieval_benchmark_use_case,
+)
 from benchmark.online_pipeline.shared.jsonl import read_jsonl, write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 
 
@@ -42,7 +43,9 @@ def run_structural_module_benchmark(
     instances = read_jsonl(dataset_dir / "instances.jsonl")
     gold_rows = _read_optional_jsonl(dataset_dir / "gold.jsonl")
     gold_ids = {row.get("instance_id") for row in gold_rows}
-    method_obj = load_method(method, default_module=module_name)
+    if module_name != "search_retrieval":
+        raise ValueError(f"No structural benchmark method adapter for module '{module_name}'")
+    method_obj = load_search_retrieval_benchmark_use_case(method)
 
     predictions: list[dict[str, Any]] = []
     for instance in instances:
@@ -109,9 +112,20 @@ def _structural_metrics(
 
 def _run_module_method(module_name: str, method_obj, instance: dict[str, Any]):
     if module_name == "search_retrieval":
-        return method_obj.run(
+        max_results = int(
+            instance.get("max_results_per_source")
+            or instance.get("max_results")
+            or 20
+        )
+        return method_obj.execute(
             question_pico=_required_dataclass(instance, "question_pico", QuestionPICO),
-            config=ModuleRunConfig(max_results=int(instance.get("max_results") or 20)),
+            config=ModuleRunConfig(
+                max_candidates_per_source=int(
+                    instance.get("max_candidates_per_source")
+                    or max(100, max_results)
+                ),
+                max_results_per_source=max_results,
+            ),
         )
     if module_name == "study_screening":
         return method_obj.run(
@@ -138,7 +152,6 @@ def _run_module_method(module_name: str, method_obj, instance: dict[str, Any]):
             question_pico=_required_dataclass(instance, "question_pico", QuestionPICO),
             included_studies=_required_text_list(instance, "included_studies"),
             articles=_required_dataclass_list(instance, "articles", CleanedArticle),
-            study_characteristics=_required_dataclass_list(instance, "study_characteristics", StudyPIOCharacteristics),
         )
     if module_name == "grade":
         return method_obj.run(

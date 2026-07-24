@@ -1,0 +1,13 @@
+Evaluate whether the study used a truly random allocation sequence.
+
+Low risk:
+- Explicit random method such as random number table, computer random number generator, coin toss, shuffled cards/envelopes, dice, drawing lots, minimization
+- Randomized/randomly allocated plus context clues such as computer-generated, random number generator, permuted blocks, stratified randomization, central randomization, pharmacy randomization
+
+High risk requires clear evidence of a non-random or predictable allocation rule:
+- Birth date parity, admission date or day of week, hospital record number, alternation, clinician judgement, patient preference, test results, intervention availability
+- Paper explicitly states a non-random method was used
+
+Unclear risk:
+- Only states randomized/randomly allocated with no additional context
+- Insufficient information to judge and no context clues

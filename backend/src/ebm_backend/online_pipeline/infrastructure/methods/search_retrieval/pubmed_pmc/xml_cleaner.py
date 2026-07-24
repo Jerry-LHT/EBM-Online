@@ -17,6 +17,7 @@ from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.pubmed_
 
 SKIP_TAGS = {"fig", "ref-list", "supplementary-material"}
 BACK_SECTION_TAGS = {"ack", "app-group", "app", "glossary", "fn-group"}
+XML_CLEANER_VERSION = "pmc_xml_cleaner_v1"
 
 
 def clean_article_xml(
@@ -30,12 +31,13 @@ def clean_article_xml(
     article = _find_article_root(root)
 
     sections: list[ArticleSection] = []
-    abstract_text = _extract_abstract(article)
+    abstract_text = _extract_abstract(article) or metadata.abstract.strip()
     if abstract_text:
         sections.append(ArticleSection(section_id="abstract", title="Abstract", text=abstract_text))
 
     tables: list[ArticleTable] = []
     _collect_sections_and_tables(article, sections=sections, tables=tables)
+    tables = _dedupe_tables(tables)
 
     return CleanedArticle(
         study_id=f"pmc::{pmcid}",
@@ -47,6 +49,13 @@ def clean_article_xml(
             publication_year=metadata.publication_year,
             mesh_terms=list(metadata.mesh_terms),
             doi=metadata.doi,
+            publication_types=list(metadata.publication_types),
+            languages=list(metadata.languages),
+            trial_registration_ids=list(metadata.trial_registration_ids),
+            related_article_types=list(metadata.related_article_types),
+            is_retracted=metadata.is_retracted,
+            is_retraction_notice=metadata.is_retraction_notice,
+            is_correction=metadata.is_correction,
         ),
         xml_content=ArticleXmlContent(sections=sections),
         tables=tables,
@@ -125,6 +134,7 @@ def _walk_container(
                 continue
             if child_local in SKIP_TAGS:
                 continue
+            _collect_nested_tables(child, section_path=next_path, tables=tables)
             text_blocks.extend(_block_texts(child))
         body_text = "\n\n".join(part for part in text_blocks if part)
         if body_text:
@@ -142,11 +152,11 @@ def _walk_container(
 
 
 def _parse_table(node: ElementTree.Element, *, section_path: list[str]) -> ArticleTable | None:
-    table = node.find(".//table")
+    table = _first_descendant(node, "table")
     if table is None:
         return None
     label = _first_child_text(node, "label")
-    caption = _text_of(node.find("./caption"))
+    caption = _text_of(_first_child(node, "caption"))
     return ArticleTable(
         table_id=str(node.attrib.get("id") or label or caption or "table"),
         caption=caption,
@@ -156,26 +166,82 @@ def _parse_table(node: ElementTree.Element, *, section_path: list[str]) -> Artic
                 "_section_path": " / ".join(section_path),
             }
         ],
+        raw_xml=ElementTree.tostring(node, encoding="unicode"),
     )
 
 
 def _block_texts(node: ElementTree.Element) -> list[str]:
     texts: list[str] = []
     local = _local_name(node.tag)
-    if local in SKIP_TAGS:
+    if local in SKIP_TAGS or local == "table-wrap":
         return texts
     if local in {"p", "title", "label"}:
-        text = _text_of(node)
+        text = _text_excluding_tables(node)
         if text:
             texts.append(text)
         return texts
     for child in list(node):
         texts.extend(_block_texts(child))
     if not texts:
-        text = _text_of(node)
+        text = _text_excluding_tables(node)
         if text:
             texts.append(text)
     return texts
+
+
+def _collect_nested_tables(
+    node: ElementTree.Element,
+    *,
+    section_path: list[str],
+    tables: list[ArticleTable],
+) -> None:
+    local = _local_name(node.tag)
+    if local in SKIP_TAGS:
+        return
+    if local == "table-wrap":
+        parsed = _parse_table(node, section_path=section_path)
+        if parsed is not None:
+            tables.append(parsed)
+        return
+    for child in list(node):
+        _collect_nested_tables(child, section_path=section_path, tables=tables)
+
+
+def _text_excluding_tables(node: ElementTree.Element) -> str:
+    parts: list[str] = []
+
+    def visit(current: ElementTree.Element) -> None:
+        if current.text:
+            parts.append(current.text)
+        for child in list(current):
+            local = _local_name(child.tag)
+            if local not in SKIP_TAGS and local != "table-wrap":
+                visit(child)
+            if child.tail:
+                parts.append(child.tail)
+
+    visit(node)
+    return " ".join(" ".join(parts).split()).strip()
+
+
+def _dedupe_tables(tables: list[ArticleTable]) -> list[ArticleTable]:
+    results: list[ArticleTable] = []
+    seen_raw_xml: set[str] = set()
+    for table in tables:
+        raw_xml = next(
+            (
+                str(row.get("_raw_xml"))
+                for row in table.rows
+                if isinstance(row, dict) and row.get("_raw_xml")
+            ),
+            "",
+        )
+        if raw_xml and raw_xml in seen_raw_xml:
+            continue
+        if raw_xml:
+            seen_raw_xml.add(raw_xml)
+        results.append(table)
+    return results
 
 
 def _first_child_text(node: ElementTree.Element, tag_name: str) -> str | None:
@@ -185,6 +251,26 @@ def _first_child_text(node: ElementTree.Element, tag_name: str) -> str | None:
             if text:
                 return text
     return None
+
+
+def _first_child(
+    node: ElementTree.Element,
+    tag_name: str,
+) -> ElementTree.Element | None:
+    return next(
+        (child for child in list(node) if _local_name(child.tag) == tag_name),
+        None,
+    )
+
+
+def _first_descendant(
+    node: ElementTree.Element,
+    tag_name: str,
+) -> ElementTree.Element | None:
+    return next(
+        (descendant for descendant in node.iter() if _local_name(descendant.tag) == tag_name),
+        None,
+    )
 
 
 def _text_of(node: ElementTree.Element | None) -> str:

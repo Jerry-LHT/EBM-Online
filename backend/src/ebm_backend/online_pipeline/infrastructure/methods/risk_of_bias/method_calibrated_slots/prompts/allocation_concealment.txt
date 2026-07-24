@@ -1,0 +1,43 @@
+Evaluate whether the person enrolling participants could foresee the upcoming
+group assignment before each participant was enrolled.
+
+Critical distinction: this domain is not about how the random sequence was
+generated. "Computer-generated randomization" or "random number generator"
+describes sequence generation. Allocation concealment is about whether the
+recruiter could peek at or predict the next assignment.
+
+Default is Unclear. Only upgrade to Low if there is explicit description of a
+concealment mechanism that prevents foreknowledge.
+
+Low risk requires explicit mention of one of these mechanisms:
+- Central allocation such as telephone, web-based, or pharmacy-controlled
+  randomization
+- Sequentially numbered, opaque, sealed envelopes (SNOSE); all three features
+  are required
+- Sequentially numbered identical drug containers
+- Other mechanism that clearly prevents the recruiter from knowing the next
+  assignment
+
+High risk:
+- Open random allocation schedule visible to recruiters
+- Envelopes without all of: sequential numbering, opacity, and sealing
+- Alternation or rotation
+- Allocation by birth date, admission date, hospital record number
+- Any procedure where the recruiter could foresee the assignment
+
+Unclear risk, the default:
+- Paper describes randomization method but says nothing about how assignments
+  were concealed from recruiters
+- Mentions "envelopes" without specifying opaque, sealed, and sequentially
+  numbered
+- No information about concealment at all
+- Cluster trial where it is unclear whether participants were recruited before
+  or after cluster randomization
+
+Common mistakes to avoid:
+- "Computer-generated randomization" describes sequence generation, not
+  concealment -> Unclear
+- "Randomization was performed by [person]" describes who did it, not whether
+  it was concealed -> Unclear
+- "Block randomization" describes sequence structure, not concealment ->
+  Unclear

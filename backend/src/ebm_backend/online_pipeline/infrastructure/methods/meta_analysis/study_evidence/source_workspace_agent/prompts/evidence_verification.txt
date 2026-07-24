@@ -1,0 +1,67 @@
+Independently reconstruct each proposed article contribution from the supplied
+raw sources. Do not vote on the prior proposal and do not trust a bare material
+ID. Read the headers, result cells or rows, footnotes and relevant prose needed
+to establish the article-local outcome, measure, timepoint, result frame,
+analysis population, arm mapping and each final numeric field.
+
+Bind arm-level final fields to a StudyMap `arm_id` and return the source wording
+in `observed_arm_label`. Bind a directly reported between-group mean difference
+and its SE/CI to the selected comparison instead: leave `arm_id` and
+`observed_arm_label` null and record whether the report is experimental minus
+control or control minus experimental in `comparison_direction`. Multiple
+labels or aliases for one arm ID do not create multiple arms; distinct arm IDs
+remain distinct even when their interventions belong to the same review
+category.
+
+Choose the most defensible reported value. Compare plausible interpretations by
+their complete semantic relationship to the requested result: outcome and
+measure, timepoint, arm, row or item, column-header path, analysis population,
+participant flow or attrition, linked footnotes and explicit contradictions.
+There is no universal priority among a cell, row, header, footnote or prose. A
+randomized or baseline N may be the best-supported denominator when the report
+shows no narrower analyzed population, while a result-specific or
+outcome-complete N may be stronger when its scope is explicitly linked. Do not
+choose from effect size, direction, significance or convenience.
+
+For every final field in a confirmed or corrected verdict, return typed material
+and an `evidence_scope`:
+
+- identify the source-local outcome, measure, timepoint, arm, analysis
+  population, result frame and row/item label;
+- for change-from-baseline results, classify the reported subtraction direction;
+- for direct effects, leave arm null and identify the comparison direction;
+- list the column-header path that governs the value;
+- classify the denominator scope, using `not_applicable` for fields that are not
+  denominators;
+- list only footnotes actually linked to this field, with exact text. Include a
+  marker when the table supplies one; table-wide footnotes may have no marker;
+- add compact exact supporting quotes with their own `source_ref` and
+  `source_kind` when they establish scope beyond the material's own source;
+- use `scope_status=complete` only when the supplied source establishes the
+  necessary linkage, `requires_audit` when a concrete scope relation needs
+  focused review, and `incomplete` when the supplied bundle lacks required
+  source context.
+
+Use `selection_basis=direct` when the material directly reports the final field
+for that scope. Use `supported_inference` for a source-supported scope choice or
+deterministic conversion, and `assumption` only for an explicit review-level
+assumption recorded at verdict level. Also report high, medium or low confidence
+and a concise evidence-based rationale. Confidence is an audit signal, not
+evidence.
+
+Candidate-owned evidence must stay in that candidate's table; another table or
+section is supporting evidence. Multiple rows for the same final field are
+allowed for eligible arms that code will combine. Return `unresolved` only when
+no defensible candidate exists or two interpretations remain genuinely tied
+after the supplied evidence is compared. An unresolved verdict has no final
+fields. Do not calculate, convert, invent values or silently override source
+scope. Deterministic code validates locators and performs all arithmetic.
+
+For continuous Mean Difference, return exactly one supported representation.
+Use the six arm-level mean/SD/N fields when those data are the selected result.
+When the selected result is a direct adjusted or unadjusted between-group mean
+difference, return `direct_effect` plus `direct_uncertainty`; the latter may
+be backed by a reported SE or confidence interval. You may additionally return
+both arm totals when their analysis-population scope is supported. Do not mix a
+direct effect with arm means/SDs, derive arm SDs from a model-based CI, or use a
+P value alone as uncertainty.

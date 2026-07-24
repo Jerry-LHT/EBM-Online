@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import http.client
 import json
 import ssl
 import time
@@ -14,12 +15,16 @@ from xml.etree import ElementTree
 
 import certifi
 
+from ebm_backend.online_pipeline.infrastructure.methods.search_retrieval.errors import (
+    SearchRetrievalStageError,
+)
+
 
 USER_AGENT = "ebm-online-pipeline-search-retrieval/0.1"
 PMC_IDCONV_URL = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
 PMC_EFETCH_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 DEFAULT_TIMEOUT = 30.0
-DEFAULT_RETRIES = 2
+DEFAULT_RETRIES = 1
 
 Urlopen = Callable[[urllib.request.Request, float], object]
 
@@ -46,8 +51,10 @@ class PmcClient:
                 "idtype": "pmid",
             }
         )
-        payload = self._request_text(f"{PMC_IDCONV_URL}?{params}")
-        data = json.loads(payload)
+        data = self._request_json(
+            f"{PMC_IDCONV_URL}?{params}",
+            stage="pmcid_resolution",
+        )
         resolved: dict[str, str] = {}
         for record in data.get("records") or []:
             pmid = str(record.get("pmid") or "").strip()
@@ -66,8 +73,10 @@ class PmcClient:
                 "retmode": "xml",
             }
         )
-        payload = self._request_text(f"{PMC_EFETCH_URL}?{params}")
-        root = ElementTree.fromstring(payload)
+        root = self._request_xml(
+            f"{PMC_EFETCH_URL}?{params}",
+            stage="pmc_full_text",
+        )
         results: dict[str, str] = {}
         for article in root.findall("./article"):
             pmcid = _article_pmcid(article)
@@ -76,27 +85,59 @@ class PmcClient:
             results[pmcid] = ElementTree.tostring(article, encoding="unicode")
         return results
 
-    def _request_text(self, url: str) -> str:
-        last_error: Exception | None = None
+    def _request_json(self, url: str, *, stage: str) -> dict:
+        return self._request_parsed(
+            url,
+            stage=stage,
+            parser=lambda payload: _parse_json_object(payload),
+        )
+
+    def _request_xml(self, url: str, *, stage: str) -> ElementTree.Element:
+        return self._request_parsed(
+            url,
+            stage=stage,
+            parser=_parse_pmc_articleset,
+        )
+
+    def _request_parsed(self, url: str, *, stage: str, parser):
         for attempt in range(self.retries + 1):
             try:
                 self._throttle()
                 request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
                 with self.opener(request, self.timeout) as response:
-                    return response.read().decode("utf-8")
+                    payload = response.read().decode("utf-8")
+                return parser(payload)
             except urllib.error.HTTPError as exc:
-                last_error = exc
                 if 400 <= exc.code < 500 and exc.code != 429:
-                    raise
+                    raise SearchRetrievalStageError(
+                        stage=stage,
+                        attempts=attempt + 1,
+                    ) from exc
                 if attempt >= self.retries:
-                    raise
+                    raise SearchRetrievalStageError(
+                        stage=stage,
+                        attempts=attempt + 1,
+                    ) from exc
                 time.sleep(min(2**attempt, 8))
-            except (urllib.error.URLError, TimeoutError, ssl.SSLError, UnicodeDecodeError, json.JSONDecodeError, ElementTree.ParseError) as exc:
-                last_error = exc
+            except (
+                urllib.error.URLError,
+                http.client.RemoteDisconnected,
+                http.client.IncompleteRead,
+                ConnectionError,
+                TimeoutError,
+                ssl.SSLError,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+                ElementTree.ParseError,
+                ValueError,
+            ) as exc:
                 if attempt >= self.retries:
-                    raise RuntimeError(f"PMC request failed: {url}") from exc
+                    raise SearchRetrievalStageError(
+                        stage=stage,
+                        attempts=attempt + 1,
+                    ) from exc
                 time.sleep(min(2**attempt, 8))
-        raise RuntimeError(f"Unreachable PMC failure: {last_error}")
+        raise AssertionError("unreachable")
 
     def _throttle(self) -> None:
         if self._min_interval <= 0:
@@ -114,6 +155,25 @@ def _article_pmcid(article: ElementTree.Element) -> str | None:
             if text:
                 return text
     return None
+
+
+def _parse_json_object(payload: str) -> dict:
+    data = json.loads(payload)
+    if not isinstance(data, dict):
+        raise ValueError("PMC response JSON must be an object")
+    records = data.get("records", [])
+    if not isinstance(records, list) or any(
+        not isinstance(record, dict) for record in records
+    ):
+        raise ValueError("PMC response records must be a list of objects")
+    return data
+
+
+def _parse_pmc_articleset(payload: str) -> ElementTree.Element:
+    root = ElementTree.fromstring(payload)
+    if root.tag != "pmc-articleset":
+        raise ValueError("PMC full-text response root must be pmc-articleset")
+    return root
 
 
 def _default_urlopen(request: urllib.request.Request, timeout: float):

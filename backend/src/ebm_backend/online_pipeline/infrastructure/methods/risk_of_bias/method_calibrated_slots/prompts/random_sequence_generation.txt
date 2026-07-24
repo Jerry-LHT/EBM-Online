@@ -1,0 +1,40 @@
+Evaluate whether the study used a truly random allocation sequence.
+
+Be reasonably PERMISSIVE for Low risk: if the paper describes randomization
+with sufficient detail to suggest a proper random method was used, Low risk
+is appropriate even without exhaustive methodological detail.
+
+Low risk - any one of these supports Low:
+- Explicit random method: random number table, computer random number generator,
+  coin toss, shuffled cards/envelopes, dice, drawing lots, minimization
+- "Randomized" or "randomly allocated" plus context clues that suggest proper
+  randomization, e.g. "computer-generated", "random number generator",
+  "permuted blocks", "stratified randomization", "central randomization",
+  "pharmacy randomization", or similar phrases indicating a systematic random
+  process
+- Random permuted blocks with the random generation method described
+- Description of randomization procedure that clearly indicates random
+  allocation, e.g. "participants were randomly assigned using a computerized
+  system"
+
+High risk - requires clear evidence of non-random or predictable allocation:
+- Explicitly non-random rules: birth date parity, admission date or day of week,
+  hospital record number, alternation, clinician judgement, patient preference,
+  test results, intervention availability
+- Paper explicitly states a non-random method was used
+
+Unclear risk - reserve for genuinely ambiguous cases:
+- Only states "randomized" or "randomly allocated" with no additional context
+  and no mention of computer, blocks, stratification, central allocation, etc.
+- Insufficient information to judge and no context clues
+
+Important: "randomized" alone with no context -> Unclear. But "randomized" plus
+context clues (computer-generated, blocks, stratification, central allocation)
+-> Low risk.
+
+Common mistakes to avoid:
+- "Computer-generated randomization" -> Low risk, not Unclear
+- "Block randomization" or "stratified randomization" -> Low risk; these imply
+  proper random sequence
+- "Randomization was performed by statistician" -> Low risk; this suggests a
+  proper method

@@ -18,9 +18,11 @@ from ebm_backend.online_pipeline.domain.serialization import to_jsonable
 from benchmark.online_pipeline.risk_of_bias.evaluation.io import cleaned_article_from_payload, load_dataset
 from benchmark.online_pipeline.risk_of_bias.evaluation.metrics import DOMAIN_IDS, LABELS, evaluate_comparisons
 from benchmark.online_pipeline.shared.jsonl import append_jsonl, read_jsonl, write_jsonl
-from benchmark.online_pipeline.shared.method_loader import load_method
 from benchmark.online_pipeline.shared.report_utils import write_json, write_summary_markdown
 from benchmark.online_pipeline.shared.run_utils import default_run_id
+from benchmark.online_pipeline.risk_of_bias.evaluation.method_adapter import (
+    load_risk_of_bias_benchmark_method,
+)
 
 
 MODULE_NAME = "risk_of_bias"
@@ -66,7 +68,11 @@ def run_benchmark(
         (run_dir / "prediction_failures.jsonl").unlink(missing_ok=True)
     completed_ids = {str(row["instance_id"]) for row in predictions}
 
-    method_obj = None if method in {"gold", "risk_of_bias.gold"} else load_method(method, default_module=MODULE_NAME)
+    method_obj = (
+        None
+        if method in {"gold", "risk_of_bias.gold"}
+        else load_risk_of_bias_benchmark_method(method)
+    )
     if method_obj is not None and hasattr(method_obj, "configure_for_benchmark"):
         method_obj.configure_for_benchmark(llm_config=llm_config, workers=workers, run_dir=run_dir, resume=resume)
 

@@ -16,7 +16,7 @@ from ebm_backend.online_pipeline.domain.article import (
 from ebm_backend.online_pipeline.domain.common import WorkflowConstraints
 from ebm_backend.online_pipeline.domain.question import QuestionPICO
 from ebm_backend.online_pipeline.infrastructure.methods.study_screening.factory import (
-    build_study_screening_method,
+    build_production_study_screening,
 )
 
 
@@ -25,7 +25,11 @@ RUN_LIVE_LLM_TESTS = os.getenv("RUN_LIVE_LLM_TESTS") == "1"
 
 @pytest.mark.skipif(not RUN_LIVE_LLM_TESTS, reason="Set RUN_LIVE_LLM_TESTS=1 to run live LLM tests.")
 def test_study_screening_live_llm_smoke() -> None:
-    use_case = RunStudyScreening(method=build_study_screening_method(method_name="default"))
+    method_pair = build_production_study_screening()
+    use_case = RunStudyScreening(
+        criteria_planner=method_pair.criteria_planner,
+        article_screener=method_pair.article_screener,
+    )
     result = use_case.execute(
         question_text="Should adults with hypertension receive aerobic exercise compared with usual care?",
         question_pico=QuestionPICO(

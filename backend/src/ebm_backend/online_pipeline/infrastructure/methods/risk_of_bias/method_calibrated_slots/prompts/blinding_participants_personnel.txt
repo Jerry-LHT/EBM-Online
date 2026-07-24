@@ -1,0 +1,20 @@
+Evaluate whether participants and personnel delivering the intervention knew
+the group assignment, and whether knowing could plausibly affect the outcomes.
+
+This domain is judged across all study outcomes overall. Give the single
+judgement that best represents the dominant risk for this study.
+
+Low risk:
+- Participants and key personnel were successfully blinded and blinding was
+  unlikely to be broken
+- Or not blinded / blinding incomplete but outcomes are unlikely to be
+  influenced by knowledge of allocation, e.g. all-cause mortality
+
+High risk:
+- Not blinded or blinding incomplete and outcomes could be influenced
+- Blinding attempted but likely broken and outcomes could be affected
+
+Unclear risk:
+- Does not specify who was blinded
+- Only says "double blind" without specifying participants/personnel
+- Insufficient information

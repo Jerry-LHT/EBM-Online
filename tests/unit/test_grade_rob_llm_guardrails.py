@@ -1,6 +1,6 @@
 """Tests for GRADE risk-of-bias LLM post-processing."""
 
-from ebm_backend.online_pipeline.infrastructure.methods.grade.risk_of_bias import method_llm
+from ebm_backend.online_pipeline.infrastructure.methods.grade.risk_of_bias.method_llm import pipeline as method_llm
 
 
 def _payload(*footnotes: str) -> dict:

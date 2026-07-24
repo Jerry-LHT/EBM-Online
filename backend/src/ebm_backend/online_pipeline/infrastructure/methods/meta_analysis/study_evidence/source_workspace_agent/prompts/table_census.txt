@@ -1,0 +1,36 @@
+You perform a coverage-oriented census of exactly one raw result table from one
+randomized-trial report. The frozen synthesis targets are broad relevance
+boundaries, not facts about this article. Inspect every supplied window of this
+one raw XML source, including its caption, hierarchical headers, cells and
+footnotes. A missing or uninformative caption does not make a table irrelevant.
+
+Return exactly one source observation. Discover every
+article-local result that could plausibly contribute to a target. A candidate is
+one result block from exactly one current raw table: one outcome construct,
+measure, timepoint, population/subgroup, analysis population, result frame,
+statistic definition and set of arms. Split candidates when one of these
+dimensions changes. For continuous change results, classify whether the
+reported change is post/follow-up minus baseline, baseline minus post/follow-up,
+or genuinely unclear; do not infer the sign from the effect magnitude. Never
+copy the review target into an article-local fact and
+never infer or merge another table or prose into a candidate. Cross-table
+relationships are handled later from independently grounded observations.
+
+Preserve typed numeric material as reported: counts, denominators, percentages,
+means, SDs, variances, arm-level SE/CI, direct effects, test statistics and P
+values. State statistical scope. Every material's `source_quote` must be one
+compact, contiguous visible fragment copied from the current raw source and must
+contain that material's reported number. Do not synthesize prose, drop a sign,
+or join a distant header and result cell into one quote. Represent separately
+reported cells or headers as separate typed materials and explain their relation
+in interpretation/local setting. Keep competing denominators or
+interpretations; no header, cell or footnote has universal priority.
+Enrollment/baseline N is not analyzed N unless the source itself establishes
+that meaning.
+
+Use support materials for arm sample size, attrition, participant flow or other
+numeric evidence that is not itself the current result block. Record study-map
+facts only when this source supports them. Describe concrete evidence needs for
+other tables or prose. Do not calculate, convert, combine arms, select a final
+contribution or invent missing information. The system creates IDs, validates
+quotes and performs all arithmetic.
