@@ -1,0 +1,853 @@
+{
+  "$defs": {
+    "AbsoluteEffectCalculation": {
+      "additionalProperties": false,
+      "description": "Inputs for a supported deterministic absolute-effect derivation.\n\nAbsence means that the scenario was reported upstream or could not be\nderived by a supported calculator. It is not an error or a professional\ninsufficiency judgement.",
+      "properties": {
+        "baseline_risk": {
+          "title": "Baseline Risk",
+          "type": "number"
+        },
+        "confidence_interval_lower": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confidence Interval Lower"
+        },
+        "confidence_interval_upper": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confidence Interval Upper"
+        },
+        "display_scale": {
+          "title": "Display Scale",
+          "type": "number"
+        },
+        "effect_estimate": {
+          "title": "Effect Estimate",
+          "type": "number"
+        },
+        "measure": {
+          "title": "Measure",
+          "type": "string"
+        }
+      },
+      "required": [
+        "measure",
+        "baseline_risk",
+        "effect_estimate",
+        "confidence_interval_lower",
+        "confidence_interval_upper",
+        "display_scale"
+      ],
+      "title": "AbsoluteEffectCalculation",
+      "type": "object"
+    },
+    "AbsoluteEffectScenario": {
+      "additionalProperties": false,
+      "properties": {
+        "absolute_difference": {
+          "$ref": "#/$defs/EffectPresentation"
+        },
+        "baseline_basis": {
+          "title": "Baseline Basis",
+          "type": "string"
+        },
+        "calculation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AbsoluteEffectCalculation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "comparator_effect": {
+          "$ref": "#/$defs/EffectPresentation"
+        },
+        "intervention_effect": {
+          "$ref": "#/$defs/EffectPresentation"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "comparator_effect",
+        "intervention_effect",
+        "absolute_difference",
+        "baseline_basis",
+        "calculation",
+        "provenance"
+      ],
+      "title": "AbsoluteEffectScenario",
+      "type": "object"
+    },
+    "ArtifactIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "severity",
+        "provenance"
+      ],
+      "title": "ArtifactIssue",
+      "type": "object"
+    },
+    "Certainty": {
+      "enum": [
+        "high",
+        "moderate",
+        "low",
+        "very_low"
+      ],
+      "title": "Certainty",
+      "type": "string"
+    },
+    "EffectPresentation": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence_interval_lower": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confidence Interval Lower"
+        },
+        "confidence_interval_unavailable_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confidence Interval Unavailable Reason"
+        },
+        "confidence_interval_upper": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Confidence Interval Upper"
+        },
+        "estimate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Estimate"
+        },
+        "measure": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Measure"
+        },
+        "narrative": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Narrative"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EffectStatus"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "status",
+        "measure",
+        "estimate",
+        "confidence_interval_lower",
+        "confidence_interval_upper",
+        "confidence_interval_unavailable_reason",
+        "unit",
+        "narrative",
+        "provenance"
+      ],
+      "title": "EffectPresentation",
+      "type": "object"
+    },
+    "EffectStatus": {
+      "enum": [
+        "estimated",
+        "not_estimable",
+        "not_reported"
+      ],
+      "title": "EffectStatus",
+      "type": "string"
+    },
+    "GRADEConcern": {
+      "enum": [
+        "not_serious",
+        "serious",
+        "very_serious",
+        "extremely_serious"
+      ],
+      "title": "GRADEConcern",
+      "type": "string"
+    },
+    "GRADEDomain": {
+      "enum": [
+        "risk_of_bias",
+        "inconsistency",
+        "indirectness",
+        "imprecision",
+        "publication_bias"
+      ],
+      "title": "GRADEDomain",
+      "type": "string"
+    },
+    "GRADEDomainJudgement": {
+      "additionalProperties": false,
+      "properties": {
+        "concern": {
+          "$ref": "#/$defs/GRADEConcern"
+        },
+        "domain": {
+          "$ref": "#/$defs/GRADEDomain"
+        },
+        "downgrade_levels": {
+          "title": "Downgrade Levels",
+          "type": "integer"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        }
+      },
+      "required": [
+        "domain",
+        "concern",
+        "downgrade_levels",
+        "explanation",
+        "provenance"
+      ],
+      "title": "GRADEDomainJudgement",
+      "type": "object"
+    },
+    "GRADEMethodDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "authoritative_sources": {
+          "items": {
+            "$ref": "#/$defs/MethodologyReference"
+          },
+          "title": "Authoritative Sources",
+          "type": "array"
+        },
+        "decision": {
+          "title": "Decision",
+          "type": "string"
+        },
+        "decision_id": {
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "protocol_alignment": {
+          "$ref": "#/$defs/ProtocolAlignment"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_id",
+        "topic",
+        "decision",
+        "rationale",
+        "protocol_alignment",
+        "authoritative_sources",
+        "provenance"
+      ],
+      "title": "GRADEMethodDecision",
+      "type": "object"
+    },
+    "GRADEUpgradeAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "$ref": "#/$defs/GRADEUpgradeDomain"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "judgement": {
+          "$ref": "#/$defs/GRADEUpgradeJudgement"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "upgrade_levels": {
+          "title": "Upgrade Levels",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "domain",
+        "judgement",
+        "upgrade_levels",
+        "explanation",
+        "provenance"
+      ],
+      "title": "GRADEUpgradeAssessment",
+      "type": "object"
+    },
+    "GRADEUpgradeDomain": {
+      "enum": [
+        "large_effect",
+        "dose_response",
+        "opposing_plausible_residual_confounding"
+      ],
+      "title": "GRADEUpgradeDomain",
+      "type": "string"
+    },
+    "GRADEUpgradeJudgement": {
+      "enum": [
+        "not_applicable",
+        "not_present",
+        "present"
+      ],
+      "title": "GRADEUpgradeJudgement",
+      "type": "string"
+    },
+    "GradeSummaryOfFindingsDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_profiles": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GradedGRADEAssessmentDraft"
+              },
+              {
+                "$ref": "#/$defs/NoEvidenceGRADEProfileDraft"
+              }
+            ]
+          },
+          "title": "Evidence Profiles",
+          "type": "array"
+        },
+        "method_decisions": {
+          "items": {
+            "$ref": "#/$defs/GRADEMethodDecision"
+          },
+          "title": "Method Decisions",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "grade-sof-draft.v4",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "summary_of_findings": {
+          "items": {
+            "$ref": "#/$defs/SummaryOfFindingsTableDraft"
+          },
+          "title": "Summary Of Findings",
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "method_decisions",
+        "evidence_profiles",
+        "summary_of_findings"
+      ],
+      "title": "GradeSummaryOfFindingsDraft",
+      "type": "object"
+    },
+    "GradedGRADEAssessmentDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "domains": {
+          "items": {
+            "$ref": "#/$defs/GRADEDomainJudgement"
+          },
+          "title": "Domains",
+          "type": "array"
+        },
+        "evidence_body_id": {
+          "title": "Evidence Body Id",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "initial_certainty": {
+          "$ref": "#/$defs/Certainty"
+        },
+        "initial_certainty_basis": {
+          "title": "Initial Certainty Basis",
+          "type": "string"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/ArtifactIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "status": {
+          "const": "graded",
+          "title": "Status",
+          "type": "string"
+        },
+        "synthesis_analysis_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Synthesis Analysis Ids",
+          "type": "array"
+        },
+        "upgrades": {
+          "items": {
+            "$ref": "#/$defs/GRADEUpgradeAssessment"
+          },
+          "title": "Upgrades",
+          "type": "array"
+        }
+      },
+      "required": [
+        "evidence_body_id",
+        "synthesis_analysis_ids",
+        "status",
+        "initial_certainty",
+        "initial_certainty_basis",
+        "domains",
+        "upgrades",
+        "explanation",
+        "issues"
+      ],
+      "title": "GradedGRADEAssessmentDraft",
+      "type": "object"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "warning",
+        "error"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    },
+    "MethodologyReference": {
+      "additionalProperties": false,
+      "properties": {
+        "accessed_on": {
+          "title": "Accessed On",
+          "type": "string"
+        },
+        "sections": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "standard": {
+          "title": "Standard",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "version_or_revision": {
+          "title": "Version Or Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "standard",
+        "title",
+        "version_or_revision",
+        "sections",
+        "url",
+        "accessed_on"
+      ],
+      "title": "MethodologyReference",
+      "type": "object"
+    },
+    "NoEvidenceGRADEProfileDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_body_id": {
+          "title": "Evidence Body Id",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/ArtifactIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "status": {
+          "const": "no_evidence",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_body_id",
+        "status",
+        "explanation",
+        "provenance",
+        "issues"
+      ],
+      "title": "NoEvidenceGRADEProfileDraft",
+      "type": "object"
+    },
+    "ProtocolAlignment": {
+      "enum": [
+        "followed",
+        "supplemented",
+        "deviated"
+      ],
+      "title": "ProtocolAlignment",
+      "type": "string"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Excerpt"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Locator"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type",
+        "locator",
+        "excerpt"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "SummaryOfFindingsRowDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "absolute_effects": {
+          "items": {
+            "$ref": "#/$defs/AbsoluteEffectScenario"
+          },
+          "title": "Absolute Effects",
+          "type": "array"
+        },
+        "evidence_body_id": {
+          "title": "Evidence Body Id",
+          "type": "string"
+        },
+        "explanation": {
+          "title": "Explanation",
+          "type": "string"
+        },
+        "outcome": {
+          "title": "Outcome",
+          "type": "string"
+        },
+        "participant_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Participant Count"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "relative_effect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EffectPresentation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "study_count": {
+          "title": "Study Count",
+          "type": "integer"
+        },
+        "time_frame": {
+          "title": "Time Frame",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence_body_id",
+        "outcome",
+        "time_frame",
+        "relative_effect",
+        "absolute_effects",
+        "study_count",
+        "participant_count",
+        "explanation",
+        "provenance"
+      ],
+      "title": "SummaryOfFindingsRowDraft",
+      "type": "object"
+    },
+    "SummaryOfFindingsTableDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "comparison": {
+          "title": "Comparison",
+          "type": "string"
+        },
+        "intervention": {
+          "title": "Intervention",
+          "type": "string"
+        },
+        "population": {
+          "title": "Population",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/SummaryOfFindingsRowDraft"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "setting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Setting"
+        },
+        "table_id": {
+          "title": "Table Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "table_id",
+        "population",
+        "setting",
+        "intervention",
+        "comparison",
+        "rows"
+      ],
+      "title": "SummaryOfFindingsTableDraft",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GradeSummaryOfFindingsDraft"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "blocker": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Blocker"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/ArtifactIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "blocked"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "status",
+    "artifact",
+    "issues",
+    "blocker",
+    "warnings"
+  ],
+  "title": "GradeAgentOutput",
+  "type": "object"
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Synthesize Evidence"
+  short_description: "Interpret Protocol content and synthesize evidence"
+  default_prompt: "Use $synthesize-evidence to address every Protocol-planned synthesis from the frozen Study Data Collection and Risk-of-Bias artifacts."

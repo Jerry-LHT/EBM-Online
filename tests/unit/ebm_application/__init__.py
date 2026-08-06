@@ -1,0 +1,2 @@
+"""Application benchmark unit tests."""
+

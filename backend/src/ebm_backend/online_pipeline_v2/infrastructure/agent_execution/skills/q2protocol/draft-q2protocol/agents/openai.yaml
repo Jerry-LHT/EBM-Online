@@ -1,0 +1,4 @@
+interface:
+  display_name: "Draft Q2Protocol"
+  short_description: "Draft a versioned Cochrane intervention protocol"
+  default_prompt: "Use $draft-q2protocol to draft a prospective Cochrane intervention-review protocol from the supplied topic."

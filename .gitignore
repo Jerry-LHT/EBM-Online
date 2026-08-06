@@ -17,6 +17,8 @@ venv/
 !.env.example
 llm.local.json
 llm.local*.json
+.agent-runs/
+.search-packages/
 !llm.local.example.json
 
 # IDE
@@ -46,8 +48,10 @@ htmlcov/
 logs/*.log
 archive/
 .runtime/
+/output/
 
 # Benchmark generated artifacts
+benchmark/online_pipeline_v2/
 benchmark/online_pipeline/*/runs/
 benchmark/online_pipeline/meta_analysis/runs/
 benchmark/online_pipeline/grade/runs/

@@ -1,0 +1,2287 @@
+{
+  "$defs": {
+    "ArtifactIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity",
+          "default": "warning"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ArtifactIssue",
+      "type": "object"
+    },
+    "CharacteristicField": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "source_texts": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Texts",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/CharacteristicFieldStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "CharacteristicField",
+      "type": "object"
+    },
+    "CharacteristicFieldStatus": {
+      "enum": [
+        "reported",
+        "not_reported",
+        "conflicting",
+        "not_applicable",
+        "unavailable"
+      ],
+      "title": "CharacteristicFieldStatus",
+      "type": "string"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "warning",
+        "error"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excerpt"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "StudyArm": {
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": {
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "cointerventions": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "description": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "dose_or_intensity": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "duration": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "fidelity_or_adherence": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "frequency": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "label": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "role": {
+          "$ref": "#/$defs/StudyArmRole"
+        },
+        "route_or_mode": {
+          "$ref": "#/$defs/CharacteristicField"
+        }
+      },
+      "required": [
+        "arm_id",
+        "role",
+        "label",
+        "description",
+        "dose_or_intensity",
+        "route_or_mode",
+        "frequency",
+        "duration",
+        "cointerventions",
+        "fidelity_or_adherence"
+      ],
+      "title": "StudyArm",
+      "type": "object"
+    },
+    "StudyArmRole": {
+      "enum": [
+        "intervention",
+        "comparator",
+        "other_eligible"
+      ],
+      "title": "StudyArmRole",
+      "type": "string"
+    },
+    "StudyDataAdditionalCharacteristicV1": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "minLength": 1,
+          "title": "Category",
+          "type": "string"
+        },
+        "field": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "item_id": {
+          "minLength": 1,
+          "title": "Item Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "protocol_references": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Protocol References",
+          "type": "array"
+        }
+      },
+      "required": [
+        "item_id",
+        "category",
+        "label",
+        "field"
+      ],
+      "title": "StudyDataAdditionalCharacteristicV1",
+      "type": "object"
+    },
+    "StudyDataCalculationInputOriginV2": {
+      "additionalProperties": false,
+      "properties": {
+        "calculation_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Calculation Id"
+        },
+        "kind": {
+          "enum": [
+            "observed",
+            "calculated"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "observation_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observation Id"
+        },
+        "output_name": {
+          "anyOf": [
+            {
+              "enum": [
+                "value",
+                "exact"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Name"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "StudyDataCalculationInputOriginV2",
+      "type": "object"
+    },
+    "StudyDataCalculationV2": {
+      "additionalProperties": false,
+      "properties": {
+        "derivation_id": {
+          "minLength": 1,
+          "title": "Derivation Id",
+          "type": "string"
+        },
+        "expression": {
+          "minLength": 1,
+          "title": "Expression",
+          "type": "string"
+        },
+        "input_digest": {
+          "minLength": 1,
+          "title": "Input Digest",
+          "type": "string"
+        },
+        "input_origins": {
+          "additionalProperties": {
+            "$ref": "#/$defs/StudyDataCalculationInputOriginV2"
+          },
+          "propertyNames": {
+            "minLength": 1
+          },
+          "title": "Input Origins",
+          "type": "object"
+        },
+        "inputs": {
+          "additionalProperties": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "propertyNames": {
+            "minLength": 1
+          },
+          "title": "Inputs",
+          "type": "object"
+        },
+        "output_digest": {
+          "minLength": 1,
+          "title": "Output Digest",
+          "type": "string"
+        },
+        "outputs": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "propertyNames": {
+            "enum": [
+              "value",
+              "exact"
+            ]
+          },
+          "title": "Outputs",
+          "type": "object"
+        },
+        "precision": {
+          "default": 34,
+          "maximum": 80,
+          "minimum": 16,
+          "title": "Precision",
+          "type": "integer"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "tool": {
+          "const": "data-calculator",
+          "title": "Tool",
+          "type": "string"
+        }
+      },
+      "required": [
+        "derivation_id",
+        "tool",
+        "expression",
+        "inputs",
+        "input_origins",
+        "outputs",
+        "input_digest",
+        "output_digest",
+        "rationale"
+      ],
+      "title": "StudyDataCalculationV2",
+      "type": "object"
+    },
+    "StudyDataCharacteristicsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "additional_characteristics": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyDataAdditionalCharacteristicV1"
+          },
+          "title": "Additional Characteristics",
+          "type": "array"
+        },
+        "conflicts_of_interest": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "funding": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "methods": {
+          "$ref": "#/$defs/StudyMethods"
+        },
+        "notes": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "population": {
+          "$ref": "#/$defs/StudyPopulation"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "partial"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "methods",
+        "population",
+        "funding",
+        "conflicts_of_interest",
+        "notes"
+      ],
+      "title": "StudyDataCharacteristicsV1",
+      "type": "object"
+    },
+    "StudyDataCollectedResultV2": {
+      "additionalProperties": false,
+      "properties": {
+        "analysis_representations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyDataRevManRepresentationV3"
+          },
+          "title": "Analysis Representations",
+          "type": "array"
+        },
+        "calculation_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Calculation Ids",
+          "type": "array"
+        },
+        "collection_assessment": {
+          "$ref": "#/$defs/StudyDataCollectionAssessmentV2"
+        },
+        "conflict_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Conflict Ids",
+          "type": "array"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "result_id": {
+          "minLength": 1,
+          "title": "Result Id",
+          "type": "string"
+        },
+        "source_observation_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Source Observation Ids",
+          "type": "array"
+        },
+        "target_id": {
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result_id",
+        "target_id",
+        "collection_assessment"
+      ],
+      "title": "StudyDataCollectedResultV2",
+      "type": "object"
+    },
+    "StudyDataCollectionAssessmentV2": {
+      "additionalProperties": false,
+      "description": "Agent-authored professional assessment of the collected source state.",
+      "properties": {
+        "limitations": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "report_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Report Ids",
+          "type": "array"
+        },
+        "status": {
+          "minLength": 1,
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "rationale"
+      ],
+      "title": "StudyDataCollectionAssessmentV2",
+      "type": "object"
+    },
+    "StudyDataCollectionStudyV1": {
+      "additionalProperties": false,
+      "properties": {
+        "arms": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyArm"
+          },
+          "title": "Arms",
+          "type": "array"
+        },
+        "calculations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyDataCalculationV2"
+          },
+          "title": "Calculations",
+          "type": "array"
+        },
+        "characteristics": {
+          "$ref": "#/$defs/StudyDataCharacteristicsV1"
+        },
+        "completion": {
+          "$ref": "#/$defs/StudyDataCompletionV1"
+        },
+        "conflicts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyResultConflict"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "display_name": {
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "issues": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ArtifactIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "outcomes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyOutcome"
+          },
+          "title": "Outcomes",
+          "type": "array"
+        },
+        "report_coverage": {
+          "items": {
+            "$ref": "#/$defs/StudyResultsReportCoverage"
+          },
+          "title": "Report Coverage",
+          "type": "array"
+        },
+        "results": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyDataCollectedResultV2"
+          },
+          "title": "Results",
+          "type": "array"
+        },
+        "source_observations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyDataResultObservationV1"
+          },
+          "title": "Source Observations",
+          "type": "array"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "targets": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyDataResultTargetV1"
+          },
+          "title": "Targets",
+          "type": "array"
+        }
+      },
+      "required": [
+        "study_id",
+        "display_name",
+        "report_coverage",
+        "characteristics",
+        "completion"
+      ],
+      "title": "StudyDataCollectionStudyV1",
+      "type": "object"
+    },
+    "StudyDataCompletionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "characteristics": {
+          "enum": [
+            "completed",
+            "partial"
+          ],
+          "title": "Characteristics",
+          "type": "string"
+        },
+        "completed": {
+          "title": "Completed",
+          "type": "boolean"
+        },
+        "results": {
+          "enum": [
+            "completed",
+            "partial"
+          ],
+          "title": "Results",
+          "type": "string"
+        }
+      },
+      "required": [
+        "characteristics",
+        "results",
+        "completed"
+      ],
+      "title": "StudyDataCompletionV1",
+      "type": "object"
+    },
+    "StudyDataNumericValueV3": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "$ref": "#/$defs/StudyDataValueOriginV3"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Value"
+        },
+        "value_id": {
+          "minLength": 1,
+          "title": "Value Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value_id",
+        "value",
+        "origin"
+      ],
+      "title": "StudyDataNumericValueV3",
+      "type": "object"
+    },
+    "StudyDataResultObservationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_description": {
+          "minLength": 1,
+          "title": "Evidence Description",
+          "type": "string"
+        },
+        "observation_id": {
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "report_id": {
+          "minLength": 1,
+          "title": "Report Id",
+          "type": "string"
+        },
+        "reported_name": {
+          "minLength": 1,
+          "title": "Reported Name",
+          "type": "string"
+        },
+        "reported_unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reported Unit"
+        },
+        "reported_value": {
+          "$ref": "#/$defs/StudyDataScalarV1"
+        },
+        "source_location": {
+          "minLength": 1,
+          "title": "Source Location",
+          "type": "string"
+        },
+        "source_locator": {
+          "minLength": 1,
+          "title": "Source Locator",
+          "type": "string"
+        },
+        "target_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Id"
+        },
+        "uncertainty": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uncertainty"
+        }
+      },
+      "required": [
+        "observation_id",
+        "report_id",
+        "source_locator",
+        "source_location",
+        "evidence_description",
+        "reported_name",
+        "reported_value"
+      ],
+      "title": "StudyDataResultObservationV1",
+      "type": "object"
+    },
+    "StudyDataResultTargetV1": {
+      "additionalProperties": false,
+      "properties": {
+        "analysis_population": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Analysis Population"
+        },
+        "comparison": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comparison"
+        },
+        "outcome_id": {
+          "minLength": 1,
+          "title": "Outcome Id",
+          "type": "string"
+        },
+        "outcome_name": {
+          "minLength": 1,
+          "title": "Outcome Name",
+          "type": "string"
+        },
+        "population": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Population"
+        },
+        "protocol_references": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Protocol References",
+          "type": "array"
+        },
+        "report_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Report Ids",
+          "type": "array"
+        },
+        "revman_outcome_name": {
+          "minLength": 1,
+          "title": "Revman Outcome Name",
+          "type": "string"
+        },
+        "target_id": {
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "timepoint": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timepoint"
+        },
+        "unit_of_analysis": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit Of Analysis"
+        }
+      },
+      "required": [
+        "target_id",
+        "outcome_id",
+        "outcome_name",
+        "revman_outcome_name"
+      ],
+      "title": "StudyDataResultTargetV1",
+      "type": "object"
+    },
+    "StudyDataRevManArmLevelResultV3": {
+      "additionalProperties": false,
+      "properties": {
+        "continuous-data-rows": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StudyDataRevManContinuousRowV3"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Continuous-Data-Rows"
+        },
+        "dichotomous-data-rows": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StudyDataRevManDichotomousRowV3"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dichotomous-Data-Rows"
+        },
+        "footnote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Footnote"
+        }
+      },
+      "title": "StudyDataRevManArmLevelResultV3",
+      "type": "object"
+    },
+    "StudyDataRevManContinuousRawDataV3": {
+      "additionalProperties": false,
+      "properties": {
+        "ci-end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ci-level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ci-start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "p-value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sample-size": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sd": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "se": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "t-test": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "variance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "StudyDataRevManContinuousRawDataV3",
+      "type": "object"
+    },
+    "StudyDataRevManContinuousRowV3": {
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": {
+          "minLength": 1,
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "raw-data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataRevManContinuousRawDataV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sample-size": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sd": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "arm_id"
+      ],
+      "title": "StudyDataRevManContinuousRowV3",
+      "type": "object"
+    },
+    "StudyDataRevManContrastArmPairV3": {
+      "additionalProperties": false,
+      "properties": {
+        "arm-1-id": {
+          "minLength": 1,
+          "title": "Arm-1-Id",
+          "type": "string"
+        },
+        "arm-2-id": {
+          "minLength": 1,
+          "title": "Arm-2-Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "arm-1-id",
+        "arm-2-id"
+      ],
+      "title": "StudyDataRevManContrastArmPairV3",
+      "type": "object"
+    },
+    "StudyDataRevManContrastLevelResultV3": {
+      "additionalProperties": false,
+      "properties": {
+        "contrast-data-rows": {
+          "items": {
+            "$ref": "#/$defs/StudyDataRevManContrastRowV3"
+          },
+          "title": "Contrast-Data-Rows",
+          "type": "array"
+        },
+        "covariance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataRevManCovarianceV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "effect-measure": {
+          "enum": [
+            "LOG_OR",
+            "LOG_RR",
+            "LOG_HR",
+            "LOG_RATE_RATIO",
+            "RD",
+            "MD",
+            "SMD"
+          ],
+          "title": "Effect-Measure",
+          "type": "string"
+        },
+        "footnote": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Footnote"
+        },
+        "reference-arm-id": {
+          "minLength": 1,
+          "title": "Reference-Arm-Id",
+          "type": "string"
+        },
+        "reference-arm-sample-size": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "effect-measure",
+        "reference-arm-id",
+        "contrast-data-rows"
+      ],
+      "title": "StudyDataRevManContrastLevelResultV3",
+      "type": "object"
+    },
+    "StudyDataRevManContrastRawDataV3": {
+      "additionalProperties": false,
+      "properties": {
+        "ci-end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ci-level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ci-start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "exp-ci-end": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "exp-ci-start": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "exp-mean": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "p-value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sample-size": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "se": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "t-test": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "variance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "z-test": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "StudyDataRevManContrastRawDataV3",
+      "type": "object"
+    },
+    "StudyDataRevManContrastRowV3": {
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": {
+          "minLength": 1,
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "mean": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "raw-data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataRevManContrastRawDataV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sample-size": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "se": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "arm_id"
+      ],
+      "title": "StudyDataRevManContrastRowV3",
+      "type": "object"
+    },
+    "StudyDataRevManCorrelationDataV3": {
+      "additionalProperties": false,
+      "properties": {
+        "contrast-1": {
+          "$ref": "#/$defs/StudyDataRevManContrastArmPairV3"
+        },
+        "contrast-2": {
+          "$ref": "#/$defs/StudyDataRevManContrastArmPairV3"
+        },
+        "correlation": {
+          "$ref": "#/$defs/StudyDataNumericValueV3"
+        }
+      },
+      "required": [
+        "contrast-1",
+        "contrast-2",
+        "correlation"
+      ],
+      "title": "StudyDataRevManCorrelationDataV3",
+      "type": "object"
+    },
+    "StudyDataRevManCovarianceRawDataV3": {
+      "additionalProperties": false,
+      "properties": {
+        "approximation": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "propertyNames": {
+                "const": "never"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approximation"
+        },
+        "data-on-another-contrast": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataRevManOtherContrastDataV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "data-on-correlation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataRevManCorrelationDataV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "StudyDataRevManCovarianceRawDataV3",
+      "type": "object"
+    },
+    "StudyDataRevManCovarianceV3": {
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "anyOf": [
+            {
+              "enum": [
+                "OTHER_CONTRAST",
+                "CORRELATION",
+                "APPROXIMATION"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Method"
+        },
+        "raw-data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataRevManCovarianceRawDataV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataNumericValueV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "StudyDataRevManCovarianceV3",
+      "type": "object"
+    },
+    "StudyDataRevManDichotomousRowV3": {
+      "additionalProperties": false,
+      "properties": {
+        "arm_id": {
+          "minLength": 1,
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "cases": {
+          "$ref": "#/$defs/StudyDataNumericValueV3"
+        },
+        "sample-size": {
+          "$ref": "#/$defs/StudyDataNumericValueV3"
+        }
+      },
+      "required": [
+        "arm_id",
+        "cases",
+        "sample-size"
+      ],
+      "title": "StudyDataRevManDichotomousRowV3",
+      "type": "object"
+    },
+    "StudyDataRevManOtherContrastDataV3": {
+      "additionalProperties": false,
+      "properties": {
+        "arm-1-id": {
+          "minLength": 1,
+          "title": "Arm-1-Id",
+          "type": "string"
+        },
+        "arm-2-id": {
+          "minLength": 1,
+          "title": "Arm-2-Id",
+          "type": "string"
+        },
+        "raw-data": {
+          "$ref": "#/$defs/StudyDataRevManContrastRawDataV3"
+        }
+      },
+      "required": [
+        "arm-1-id",
+        "arm-2-id",
+        "raw-data"
+      ],
+      "title": "StudyDataRevManOtherContrastDataV3",
+      "type": "object"
+    },
+    "StudyDataRevManRepresentationV3": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "revman",
+          "title": "Kind",
+          "type": "string"
+        },
+        "notes": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "representation_id": {
+          "minLength": 1,
+          "title": "Representation Id",
+          "type": "string"
+        },
+        "result": {
+          "$ref": "#/$defs/StudyDataRevManResultV3"
+        }
+      },
+      "required": [
+        "representation_id",
+        "kind",
+        "result"
+      ],
+      "title": "StudyDataRevManRepresentationV3",
+      "type": "object"
+    },
+    "StudyDataRevManResultV3": {
+      "additionalProperties": false,
+      "properties": {
+        "arm-level-result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDataRevManArmLevelResultV3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "contrast-level-results": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/StudyDataRevManContrastLevelResultV3"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contrast-Level-Results"
+        }
+      },
+      "title": "StudyDataRevManResultV3",
+      "type": "object"
+    },
+    "StudyDataScalarV1": {
+      "additionalProperties": false,
+      "description": "Source-faithful scalar; decimals retain their reported lexical value.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "integer",
+            "decimal",
+            "text",
+            "boolean"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "StudyDataScalarV1",
+      "type": "object"
+    },
+    "StudyDataValueOriginV3": {
+      "additionalProperties": false,
+      "properties": {
+        "calculation_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Calculation Id"
+        },
+        "kind": {
+          "enum": [
+            "observed",
+            "calculated"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "observation_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observation Id"
+        },
+        "output_name": {
+          "anyOf": [
+            {
+              "enum": [
+                "value",
+                "exact"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Name"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "StudyDataValueOriginV3",
+      "type": "object"
+    },
+    "StudyMethods": {
+      "additionalProperties": false,
+      "properties": {
+        "allocation_or_exposure": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "analysis_methods": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "centres": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "design": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "follow_up": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "recruitment": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "setting": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "study_dates": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "unit_of_analysis": {
+          "$ref": "#/$defs/CharacteristicField"
+        }
+      },
+      "required": [
+        "design",
+        "setting",
+        "centres",
+        "recruitment",
+        "study_dates",
+        "follow_up",
+        "allocation_or_exposure",
+        "unit_of_analysis",
+        "analysis_methods"
+      ],
+      "title": "StudyMethods",
+      "type": "object"
+    },
+    "StudyOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "aggregation": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "assessed": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "definition": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "measurement": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "metric": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "outcome_id": {
+          "title": "Outcome Id",
+          "type": "string"
+        },
+        "time_points": {
+          "$ref": "#/$defs/CharacteristicField"
+        }
+      },
+      "required": [
+        "outcome_id",
+        "assessed",
+        "definition",
+        "measurement",
+        "metric",
+        "aggregation",
+        "time_points"
+      ],
+      "title": "StudyOutcome",
+      "type": "object"
+    },
+    "StudyPopulation": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_characteristics": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "diagnostic_criteria": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "eligibility_criteria": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "recruitment_setting": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "regions": {
+          "$ref": "#/$defs/CharacteristicField"
+        },
+        "sample_size": {
+          "$ref": "#/$defs/CharacteristicField"
+        }
+      },
+      "required": [
+        "eligibility_criteria",
+        "diagnostic_criteria",
+        "recruitment_setting",
+        "regions",
+        "sample_size",
+        "baseline_characteristics"
+      ],
+      "title": "StudyPopulation",
+      "type": "object"
+    },
+    "StudyResultConflict": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict_id": {
+          "minLength": 1,
+          "title": "Conflict Id",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "observation_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Observation Ids",
+          "type": "array"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolution"
+        },
+        "resolved": {
+          "title": "Resolved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "conflict_id",
+        "description",
+        "resolved"
+      ],
+      "title": "StudyResultConflict",
+      "type": "object"
+    },
+    "StudyResultsAccessAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "accessed": {
+          "title": "Accessed",
+          "type": "boolean"
+        },
+        "content_scope": {
+          "enum": [
+            "citation_metadata",
+            "abstract",
+            "partial_report",
+            "complete_report",
+            "complete_registry_record",
+            "supplement",
+            "correction",
+            "other"
+          ],
+          "title": "Content Scope",
+          "type": "string"
+        },
+        "evidence_format": {
+          "minLength": 1,
+          "title": "Evidence Format",
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed At"
+        },
+        "summary": {
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "locator",
+        "evidence_format",
+        "accessed",
+        "content_scope",
+        "summary"
+      ],
+      "title": "StudyResultsAccessAttempt",
+      "type": "object"
+    },
+    "StudyResultsAuthority": {
+      "additionalProperties": false,
+      "properties": {
+        "applied_principles": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Applied Principles",
+          "type": "array"
+        },
+        "authority_id": {
+          "minLength": 1,
+          "title": "Authority Id",
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "scope": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Scope",
+          "type": "array"
+        },
+        "standard": {
+          "minLength": 1,
+          "title": "Standard",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "version_or_date": {
+          "minLength": 1,
+          "title": "Version Or Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authority_id",
+        "standard",
+        "title",
+        "version_or_date",
+        "locator"
+      ],
+      "title": "StudyResultsAuthority",
+      "type": "object"
+    },
+    "StudyResultsMethodDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Authority Ids",
+          "type": "array"
+        },
+        "decision": {
+          "minLength": 1,
+          "title": "Decision",
+          "type": "string"
+        },
+        "decision_id": {
+          "minLength": 1,
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "protocol_references": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Protocol References",
+          "type": "array"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "topic": {
+          "minLength": 1,
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_id",
+        "topic",
+        "decision",
+        "rationale"
+      ],
+      "title": "StudyResultsMethodDecision",
+      "type": "object"
+    },
+    "StudyResultsReportCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyResultsAccessAttempt"
+          },
+          "title": "Attempts",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "report_id": {
+          "minLength": 1,
+          "title": "Report Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "not_started",
+            "inspected",
+            "unavailable",
+            "unreported",
+            "unusable"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "report_id",
+        "status"
+      ],
+      "title": "StudyResultsReportCoverage",
+      "type": "object"
+    },
+    "StudyResultsReviewProcess": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback_model": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Model"
+        },
+        "fallback_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Note"
+        },
+        "human_independent_extraction_satisfied": {
+          "const": false,
+          "title": "Human Independent Extraction Satisfied",
+          "type": "boolean"
+        },
+        "method_decisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyResultsMethodDecision"
+          },
+          "title": "Method Decisions",
+          "type": "array"
+        },
+        "methodology_authorities": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyResultsAuthority"
+          },
+          "title": "Methodology Authorities",
+          "type": "array"
+        },
+        "methodology_basis_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "verified",
+                "llm_fallback"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Methodology Basis Status"
+        }
+      },
+      "required": [
+        "human_independent_extraction_satisfied"
+      ],
+      "title": "StudyResultsReviewProcess",
+      "type": "object"
+    }
+  },
+  "$id": "https://ebm-online.local/artifact-contracts/study-data-collection-document.v3.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "binding": {
+      "additionalProperties": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "propertyNames": {
+        "minLength": 1
+      },
+      "title": "Binding",
+      "type": "object"
+    },
+    "issues": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "review_process": {
+      "$ref": "#/$defs/StudyResultsReviewProcess"
+    },
+    "schema_version": {
+      "const": "study-data-collection-document.v3",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "incomplete",
+        "blocked",
+        "completed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "studies": {
+      "items": {
+        "$ref": "#/$defs/StudyDataCollectionStudyV1"
+      },
+      "title": "Studies",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding",
+    "status",
+    "review_process",
+    "studies"
+  ],
+  "title": "StudyDataCollectionDocumentV3",
+  "type": "object"
+}

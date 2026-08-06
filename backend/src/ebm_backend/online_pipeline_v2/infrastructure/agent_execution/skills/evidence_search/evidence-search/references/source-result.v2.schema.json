@@ -1,0 +1,355 @@
+{
+  "$defs": {
+    "ExternalIdentifier": {
+      "additionalProperties": false,
+      "properties": {
+        "scheme": {
+          "title": "Scheme",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scheme",
+        "value"
+      ],
+      "title": "ExternalIdentifier",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excerpt"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "Record": {
+      "additionalProperties": false,
+      "properties": {
+        "abstract": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Abstract"
+        },
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "external_identifiers": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ExternalIdentifier"
+          },
+          "title": "External Identifiers",
+          "type": "array"
+        },
+        "locators": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Locators",
+          "type": "array"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "publication_types": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Publication Types",
+          "type": "array"
+        },
+        "record_id": {
+          "title": "Record Id",
+          "type": "string"
+        },
+        "related_records": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RecordRelation"
+          },
+          "title": "Related Records",
+          "type": "array"
+        },
+        "search_run_ids": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Search Run Ids",
+          "type": "array"
+        },
+        "source_data": {
+          "additionalProperties": true,
+          "title": "Source Data",
+          "type": "object"
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "source_record_id": {
+          "title": "Source Record Id",
+          "type": "string"
+        },
+        "source_record_type": {
+          "default": "other",
+          "title": "Source Record Type",
+          "type": "string"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "record_id",
+        "source_name",
+        "platform",
+        "source_record_id"
+      ],
+      "title": "Record",
+      "type": "object"
+    },
+    "RecordRelation": {
+      "additionalProperties": false,
+      "description": "A source-reported relationship to another bibliographic record.",
+      "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "related_source_record_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Related Source Record Id"
+        },
+        "relation_type": {
+          "title": "Relation Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "relation_type"
+      ],
+      "title": "RecordRelation",
+      "type": "object"
+    },
+    "SearchRun": {
+      "additionalProperties": false,
+      "properties": {
+        "executed_at": {
+          "title": "Executed At",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "result_count": {
+          "title": "Result Count",
+          "type": "integer"
+        },
+        "retrieved_count": {
+          "title": "Retrieved Count",
+          "type": "integer"
+        },
+        "search_narrative": {
+          "title": "Search Narrative",
+          "type": "string"
+        },
+        "search_run_id": {
+          "title": "Search Run Id",
+          "type": "string"
+        },
+        "source_name": {
+          "title": "Source Name",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SearchRunStatus"
+        },
+        "status_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Status Reason"
+        }
+      },
+      "required": [
+        "search_run_id",
+        "source_name",
+        "platform",
+        "query",
+        "executed_at",
+        "status",
+        "result_count",
+        "provenance",
+        "retrieved_count",
+        "status_reason",
+        "search_narrative"
+      ],
+      "title": "SearchRun",
+      "type": "object"
+    },
+    "SearchRunStatus": {
+      "enum": [
+        "succeeded",
+        "partial",
+        "failed",
+        "unavailable"
+      ],
+      "title": "SearchRunStatus",
+      "type": "string"
+    }
+  },
+  "$id": "https://ebm-online.local/artifact-contracts/source-result.v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "records": {
+      "items": {
+        "$ref": "#/$defs/Record"
+      },
+      "title": "Records",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "source-result.v2",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "search_run": {
+      "$ref": "#/$defs/SearchRun"
+    },
+    "tool_observation": {
+      "additionalProperties": true,
+      "title": "Tool Observation",
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "search_run",
+    "records"
+  ],
+  "title": "SourceResultV2",
+  "type": "object"
+}

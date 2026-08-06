@@ -1,0 +1,4 @@
+interface:
+  display_name: "Study Selection"
+  short_description: "Screen records and classify studies"
+  default_prompt: "Use $select-studies to select and classify studies from the supplied Protocol and Search Package."

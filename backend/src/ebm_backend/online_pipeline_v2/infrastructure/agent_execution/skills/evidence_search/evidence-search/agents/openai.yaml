@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evidence Search"
+  short_description: "Execute and package reproducible evidence searches"
+  default_prompt: "Use $evidence-search to verify planned strategies, execute legitimately accessible Protocol sources, record unavailable sources honestly, and package the results."
