@@ -1,0 +1,966 @@
+{
+  "$defs": {
+    "ArtifactIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity",
+          "default": "warning"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ArtifactIssue",
+      "type": "object"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "warning",
+        "error"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excerpt"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "StudyResultsAuthority": {
+      "additionalProperties": false,
+      "properties": {
+        "applied_principles": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Applied Principles",
+          "type": "array"
+        },
+        "authority_id": {
+          "minLength": 1,
+          "title": "Authority Id",
+          "type": "string"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "scope": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Scope",
+          "type": "array"
+        },
+        "standard": {
+          "minLength": 1,
+          "title": "Standard",
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "version_or_date": {
+          "minLength": 1,
+          "title": "Version Or Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "authority_id",
+        "standard",
+        "title",
+        "version_or_date",
+        "locator"
+      ],
+      "title": "StudyResultsAuthority",
+      "type": "object"
+    },
+    "StudyResultsMethodDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Authority Ids",
+          "type": "array"
+        },
+        "decision": {
+          "minLength": 1,
+          "title": "Decision",
+          "type": "string"
+        },
+        "decision_id": {
+          "minLength": 1,
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "protocol_references": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Protocol References",
+          "type": "array"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "topic": {
+          "minLength": 1,
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_id",
+        "topic",
+        "decision",
+        "rationale"
+      ],
+      "title": "StudyResultsMethodDecision",
+      "type": "object"
+    },
+    "SynthesisAnalysisRepresentationV3": {
+      "additionalProperties": false,
+      "properties": {
+        "calculated_value_sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SynthesisCalculatedValueSourceV3"
+          },
+          "title": "Calculated Value Sources",
+          "type": "array"
+        },
+        "data_type": {
+          "minLength": 1,
+          "title": "Data Type",
+          "type": "string"
+        },
+        "effect_measure": {
+          "minLength": 1,
+          "title": "Effect Measure",
+          "type": "string"
+        },
+        "representation_id": {
+          "minLength": 1,
+          "title": "Representation Id",
+          "type": "string"
+        },
+        "result_value_sources": {
+          "items": {
+            "$ref": "#/$defs/SynthesisResultValueSourceV3"
+          },
+          "title": "Result Value Sources",
+          "type": "array"
+        },
+        "source_result_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source Result Ids",
+          "type": "array"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "propertyNames": {
+            "minLength": 1
+          },
+          "title": "Values",
+          "type": "object"
+        }
+      },
+      "required": [
+        "representation_id",
+        "study_id",
+        "data_type",
+        "effect_measure",
+        "source_result_ids",
+        "values",
+        "result_value_sources"
+      ],
+      "title": "SynthesisAnalysisRepresentationV3",
+      "type": "object"
+    },
+    "SynthesisAnalysisV3": {
+      "additionalProperties": false,
+      "properties": {
+        "alternative_synthesis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SynthesisOtherMethodV2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "analysis_id": {
+          "minLength": 1,
+          "title": "Analysis Id",
+          "type": "string"
+        },
+        "authority_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Authority Ids",
+          "type": "array"
+        },
+        "calculation_traces": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SynthesisCalculationTraceV2"
+          },
+          "title": "Calculation Traces",
+          "type": "array"
+        },
+        "change_rationale": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Change Rationale"
+        },
+        "compatibility": {
+          "$ref": "#/$defs/SynthesisCompatibilityV2"
+        },
+        "contributions": {
+          "items": {
+            "$ref": "#/$defs/SynthesisContributionV2"
+          },
+          "title": "Contributions",
+          "type": "array"
+        },
+        "data_rows": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Data Rows",
+          "type": "array"
+        },
+        "definition": {
+          "$ref": "#/$defs/SynthesisDefinitionV2"
+        },
+        "issues": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "method_decision_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Method Decision Ids",
+          "type": "array"
+        },
+        "no_evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SynthesisReasonV2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "no_pooling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SynthesisReasonV2"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "origin": {
+          "enum": [
+            "protocol_planned",
+            "protocol_interpretation",
+            "post_hoc"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "overall_estimates_and_settings": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Overall Estimates And Settings",
+          "type": "array"
+        },
+        "representations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SynthesisAnalysisRepresentationV3"
+          },
+          "title": "Representations",
+          "type": "array"
+        },
+        "risk_of_bias_refs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SynthesisRiskOfBiasReferenceV2"
+          },
+          "title": "Risk Of Bias Refs",
+          "type": "array"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "title": "Settings",
+          "type": "object"
+        },
+        "subgroup_estimates": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Subgroup Estimates",
+          "type": "array"
+        },
+        "synthesis_pico_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Synthesis Pico Id"
+        }
+      },
+      "required": [
+        "analysis_id",
+        "origin",
+        "definition",
+        "compatibility",
+        "settings",
+        "contributions"
+      ],
+      "title": "SynthesisAnalysisV3",
+      "type": "object"
+    },
+    "SynthesisCalculatedValueSourceV3": {
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/SynthesisScalarInputSourceV3"
+          },
+          "minItems": 1,
+          "title": "Inputs",
+          "type": "array"
+        },
+        "output_name": {
+          "enum": [
+            "value",
+            "exact"
+          ],
+          "title": "Output Name",
+          "type": "string"
+        },
+        "trace_id": {
+          "minLength": 1,
+          "title": "Trace Id",
+          "type": "string"
+        },
+        "value_name": {
+          "minLength": 1,
+          "title": "Value Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_id",
+        "output_name",
+        "value_name",
+        "inputs"
+      ],
+      "title": "SynthesisCalculatedValueSourceV3",
+      "type": "object"
+    },
+    "SynthesisCalculationTraceV2": {
+      "additionalProperties": false,
+      "properties": {
+        "engine_id": {
+          "minLength": 1,
+          "title": "Engine Id",
+          "type": "string"
+        },
+        "engine_version": {
+          "minLength": 1,
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "input": {
+          "additionalProperties": true,
+          "title": "Input",
+          "type": "object"
+        },
+        "input_digest": {
+          "minLength": 1,
+          "title": "Input Digest",
+          "type": "string"
+        },
+        "input_projections": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Input Projections",
+          "type": "array"
+        },
+        "output": {
+          "additionalProperties": true,
+          "title": "Output",
+          "type": "object"
+        },
+        "output_digest": {
+          "minLength": 1,
+          "title": "Output Digest",
+          "type": "string"
+        },
+        "projections": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Projections",
+          "type": "array"
+        },
+        "representation_projections": {
+          "default": [],
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Representation Projections",
+          "type": "array"
+        },
+        "tool": {
+          "enum": [
+            "meta-compute",
+            "scalar-calculate"
+          ],
+          "title": "Tool",
+          "type": "string"
+        },
+        "trace_id": {
+          "minLength": 1,
+          "title": "Trace Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trace_id",
+        "tool",
+        "engine_id",
+        "engine_version",
+        "input_digest",
+        "output_digest",
+        "input",
+        "output"
+      ],
+      "title": "SynthesisCalculationTraceV2",
+      "type": "object"
+    },
+    "SynthesisCompatibilityV2": {
+      "additionalProperties": false,
+      "properties": {
+        "clinical": {
+          "minLength": 1,
+          "title": "Clinical",
+          "type": "string"
+        },
+        "methodological": {
+          "minLength": 1,
+          "title": "Methodological",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "statistical": {
+          "minLength": 1,
+          "title": "Statistical",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rationale",
+        "clinical",
+        "methodological",
+        "statistical"
+      ],
+      "title": "SynthesisCompatibilityV2",
+      "type": "object"
+    },
+    "SynthesisContributionV2": {
+      "additionalProperties": false,
+      "properties": {
+        "included": {
+          "title": "Included",
+          "type": "boolean"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "study_id",
+        "included",
+        "reason"
+      ],
+      "title": "SynthesisContributionV2",
+      "type": "object"
+    },
+    "SynthesisDefinitionV2": {
+      "additionalProperties": false,
+      "properties": {
+        "comparator": {
+          "minLength": 1,
+          "title": "Comparator",
+          "type": "string"
+        },
+        "intervention": {
+          "minLength": 1,
+          "title": "Intervention",
+          "type": "string"
+        },
+        "outcome": {
+          "minLength": 1,
+          "title": "Outcome",
+          "type": "string"
+        },
+        "population": {
+          "minLength": 1,
+          "title": "Population",
+          "type": "string"
+        },
+        "study_designs": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Study Designs",
+          "type": "array"
+        },
+        "time_point": {
+          "minLength": 1,
+          "title": "Time Point",
+          "type": "string"
+        }
+      },
+      "required": [
+        "population",
+        "intervention",
+        "comparator",
+        "outcome",
+        "time_point"
+      ],
+      "title": "SynthesisDefinitionV2",
+      "type": "object"
+    },
+    "SynthesisOtherMethodV2": {
+      "additionalProperties": false,
+      "properties": {
+        "limitations": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "method": {
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "result": {
+          "minLength": 1,
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "result",
+        "rationale"
+      ],
+      "title": "SynthesisOtherMethodV2",
+      "type": "object"
+    },
+    "SynthesisReasonV2": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "SynthesisReasonV2",
+      "type": "object"
+    },
+    "SynthesisResultValueSourceV3": {
+      "additionalProperties": false,
+      "properties": {
+        "representation_id": {
+          "minLength": 1,
+          "title": "Representation Id",
+          "type": "string"
+        },
+        "result_id": {
+          "minLength": 1,
+          "title": "Result Id",
+          "type": "string"
+        },
+        "source_value_id": {
+          "minLength": 1,
+          "title": "Source Value Id",
+          "type": "string"
+        },
+        "value_name": {
+          "minLength": 1,
+          "title": "Value Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result_id",
+        "representation_id",
+        "source_value_id",
+        "value_name"
+      ],
+      "title": "SynthesisResultValueSourceV3",
+      "type": "object"
+    },
+    "SynthesisReviewProcessV2": {
+      "additionalProperties": false,
+      "properties": {
+        "fallback_model": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Model"
+        },
+        "fallback_note": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Note"
+        },
+        "human_independent_synthesis_satisfied": {
+          "const": false,
+          "title": "Human Independent Synthesis Satisfied",
+          "type": "boolean"
+        },
+        "method_decisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyResultsMethodDecision"
+          },
+          "title": "Method Decisions",
+          "type": "array"
+        },
+        "methodology_authorities": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StudyResultsAuthority"
+          },
+          "title": "Methodology Authorities",
+          "type": "array"
+        },
+        "methodology_basis_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "verified",
+                "llm_fallback"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Methodology Basis Status"
+        }
+      },
+      "required": [
+        "human_independent_synthesis_satisfied"
+      ],
+      "title": "SynthesisReviewProcessV2",
+      "type": "object"
+    },
+    "SynthesisRiskOfBiasReferenceV2": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "used_as_statistical_weight": {
+          "const": false,
+          "title": "Used As Statistical Weight",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "study_id",
+        "reference",
+        "used_as_statistical_weight"
+      ],
+      "title": "SynthesisRiskOfBiasReferenceV2",
+      "type": "object"
+    },
+    "SynthesisScalarInputSourceV3": {
+      "additionalProperties": false,
+      "properties": {
+        "input_name": {
+          "minLength": 1,
+          "title": "Input Name",
+          "type": "string"
+        },
+        "representation_id": {
+          "minLength": 1,
+          "title": "Representation Id",
+          "type": "string"
+        },
+        "result_id": {
+          "minLength": 1,
+          "title": "Result Id",
+          "type": "string"
+        },
+        "source_value_id": {
+          "minLength": 1,
+          "title": "Source Value Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result_id",
+        "representation_id",
+        "source_value_id",
+        "input_name"
+      ],
+      "title": "SynthesisScalarInputSourceV3",
+      "type": "object"
+    }
+  },
+  "$id": "https://ebm-online.local/artifact-contracts/evidence-synthesis-document.v3.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Single Agent-authored Synthesis document and public scientific result.",
+  "properties": {
+    "analyses": {
+      "items": {
+        "$ref": "#/$defs/SynthesisAnalysisV3"
+      },
+      "title": "Analyses",
+      "type": "array"
+    },
+    "binding": {
+      "additionalProperties": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "propertyNames": {
+        "minLength": 1
+      },
+      "title": "Binding",
+      "type": "object"
+    },
+    "issues": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "review_process": {
+      "$ref": "#/$defs/SynthesisReviewProcessV2"
+    },
+    "schema_version": {
+      "const": "evidence-synthesis-document.v3",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "incomplete",
+        "blocked",
+        "completed"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding",
+    "status",
+    "review_process",
+    "analyses"
+  ],
+  "title": "EvidenceSynthesisDocumentV3",
+  "type": "object"
+}

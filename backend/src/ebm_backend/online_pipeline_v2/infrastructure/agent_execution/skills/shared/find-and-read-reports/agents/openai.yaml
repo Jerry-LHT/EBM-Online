@@ -1,0 +1,4 @@
+interface:
+  display_name: "Find and Read Reports"
+  short_description: "Locate and inspect public research reports"
+  default_prompt: "Use $find-and-read-reports with the active professional task to locate, verify, and inspect relevant research Reports."

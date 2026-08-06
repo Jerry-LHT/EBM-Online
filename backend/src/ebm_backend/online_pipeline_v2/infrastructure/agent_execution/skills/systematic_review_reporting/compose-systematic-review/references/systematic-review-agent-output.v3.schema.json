@@ -1,0 +1,500 @@
+{
+  "$defs": {
+    "ArtifactIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "severity",
+        "provenance"
+      ],
+      "title": "ArtifactIssue",
+      "type": "object"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "warning",
+        "error"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    },
+    "MethodologyBasisStatus": {
+      "description": "How the Protocol's method basis was established.",
+      "enum": [
+        "verified",
+        "llm_fallback",
+        "unresolved"
+      ],
+      "title": "MethodologyBasisStatus",
+      "type": "string"
+    },
+    "MethodologyReference": {
+      "additionalProperties": false,
+      "properties": {
+        "accessed_on": {
+          "title": "Accessed On",
+          "type": "string"
+        },
+        "sections": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "standard": {
+          "title": "Standard",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "version_or_revision": {
+          "title": "Version Or Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "standard",
+        "title",
+        "version_or_revision",
+        "sections",
+        "url",
+        "accessed_on"
+      ],
+      "title": "MethodologyReference",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Excerpt"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Locator"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type",
+        "locator",
+        "excerpt"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "ReportingMethodDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "authoritative_sources": {
+          "items": {
+            "$ref": "#/$defs/MethodologyReference"
+          },
+          "title": "Authoritative Sources",
+          "type": "array"
+        },
+        "basis_status": {
+          "$ref": "#/$defs/MethodologyBasisStatus"
+        },
+        "decision": {
+          "title": "Decision",
+          "type": "string"
+        },
+        "decision_id": {
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "fallback_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fallback Model"
+        },
+        "fallback_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Fallback Note"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_id",
+        "topic",
+        "decision",
+        "rationale",
+        "basis_status",
+        "authoritative_sources",
+        "fallback_model",
+        "fallback_note",
+        "provenance"
+      ],
+      "title": "ReportingMethodDecision",
+      "type": "object"
+    },
+    "ReviewDisplay": {
+      "additionalProperties": false,
+      "properties": {
+        "caption": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Caption"
+        },
+        "display_id": {
+          "title": "Display Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ReviewDisplayKind"
+        },
+        "location": {
+          "$ref": "#/$defs/ReviewDisplayLocation"
+        },
+        "rationale": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Rationale"
+        },
+        "source_file": {
+          "title": "Source File",
+          "type": "string"
+        },
+        "source_object_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Object Ids",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "display_id",
+        "kind",
+        "title",
+        "location",
+        "source_file",
+        "source_object_ids",
+        "caption",
+        "rationale"
+      ],
+      "title": "ReviewDisplay",
+      "type": "object"
+    },
+    "ReviewDisplayKind": {
+      "enum": [
+        "selection_flow",
+        "study_characteristics",
+        "risk_of_bias",
+        "individual_results",
+        "synthesis_results",
+        "summary_of_findings"
+      ],
+      "title": "ReviewDisplayKind",
+      "type": "string"
+    },
+    "ReviewDisplayLocation": {
+      "enum": [
+        "before_background",
+        "methods",
+        "results",
+        "discussion",
+        "appendix"
+      ],
+      "title": "ReviewDisplayLocation",
+      "type": "string"
+    },
+    "ReviewPath": {
+      "enum": [
+        "evidence_review",
+        "empty_review"
+      ],
+      "title": "ReviewPath",
+      "type": "string"
+    },
+    "ReviewSectionName": {
+      "enum": [
+        "abstract",
+        "plain_language_summary",
+        "background",
+        "objectives",
+        "methods",
+        "results",
+        "discussion",
+        "conclusions",
+        "references"
+      ],
+      "title": "ReviewSectionName",
+      "type": "string"
+    },
+    "ReviewSubsection": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "heading": {
+          "title": "Heading",
+          "type": "string"
+        }
+      },
+      "required": [
+        "heading",
+        "content"
+      ],
+      "title": "ReviewSubsection",
+      "type": "object"
+    },
+    "SystematicReviewDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "displays": {
+          "items": {
+            "$ref": "#/$defs/ReviewDisplay"
+          },
+          "title": "Displays",
+          "type": "array"
+        },
+        "document_maturity": {
+          "const": "scientific_draft",
+          "title": "Document Maturity",
+          "type": "string"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/ArtifactIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "method_decisions": {
+          "items": {
+            "$ref": "#/$defs/ReportingMethodDecision"
+          },
+          "title": "Method Decisions",
+          "type": "array"
+        },
+        "review_path": {
+          "$ref": "#/$defs/ReviewPath"
+        },
+        "schema_version": {
+          "const": "systematic-review-draft.v3",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/SystematicReviewSectionDraft"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "document_maturity",
+        "title",
+        "review_path",
+        "sections",
+        "displays",
+        "method_decisions",
+        "issues"
+      ],
+      "title": "SystematicReviewDraft",
+      "type": "object"
+    },
+    "SystematicReviewSectionDraft": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/ReviewSectionName"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "source_artifact_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Artifact Ids",
+          "type": "array"
+        },
+        "subsections": {
+          "items": {
+            "$ref": "#/$defs/ReviewSubsection"
+          },
+          "title": "Subsections",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "content",
+        "subsections",
+        "source_artifact_ids",
+        "provenance"
+      ],
+      "title": "SystematicReviewSectionDraft",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SystematicReviewDraft"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "blocker": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Blocker"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/ArtifactIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "partial",
+        "blocked"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "status",
+    "artifact",
+    "issues",
+    "blocker",
+    "warnings"
+  ],
+  "title": "SystematicReviewAgentOutput",
+  "type": "object"
+}

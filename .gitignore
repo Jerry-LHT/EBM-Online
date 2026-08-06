@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+dist/
+build/
+.eggs/
+# Virtual environment
+.venv/
+venv/
+
+# Environment
+.env
+*.env
+*.env.*
+!.env.example
+llm.local.json
+llm.local*.json
+.agent-runs/
+.search-packages/
+!llm.local.example.json
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# Database
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+es_data/
+redis_data/
+pg_data/
+
+# Test / Coverage
+.pytest_cache/
+htmlcov/
+.coverage
+.cache/
+
+# Runtime artifacts
+logs/*.log
+archive/
+.runtime/
+/output/
+
+# Benchmark generated artifacts
+benchmark/online_pipeline_v2/
+benchmark/online_pipeline/*/runs/
+benchmark/online_pipeline/meta_analysis/runs/
+benchmark/online_pipeline/grade/runs/
+benchmark/online_pipeline/meta_analysis/*/runs/
+benchmark/online_pipeline/grade/*/runs/
+benchmark/online_pipeline/meta_analysis/subtask2_study_results/debug_runs/
+benchmark/online_pipeline/meta_analysis/subtask2_study_results/tmp_rerun/
+benchmark/online_pipeline/meta_analysis/subtask2_study_results/logs/
+benchmark/online_pipeline/archive/
+benchmark/online_pipeline/raw_data/grade/intermediate/alignment_v2/table_family_predictions.jsonl
+benchmark/online_pipeline/raw_data/grade/intermediate/alignment_v2/row_setting_predictions.jsonl
+benchmark/online_pipeline/raw_data/meta_analysis/intermediate/field_candidates/
+benchmark/online_pipeline/raw_data/meta_analysis/intermediate/field_cleaning_cache/
+benchmark/online_pipeline/raw_data/meta_analysis/intermediate/*.preview30.jsonl
+benchmark/online_pipeline/raw_data/meta_analysis/intermediate/*.preview30.json
+benchmark/online_pipeline/raw_data/meta_analysis/intermediate/*.preview30.md
+benchmark/online_pipeline/raw_data/meta_analysis/intermediate/*.preview30.tsv
+benchmark/online_pipeline/raw_data/meta_analysis/intermediate/*.preview30.html
+
+# Data (too large for git)
+data/
+sr-cleaned/

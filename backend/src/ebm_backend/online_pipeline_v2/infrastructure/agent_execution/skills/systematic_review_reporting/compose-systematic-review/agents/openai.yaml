@@ -1,0 +1,4 @@
+interface:
+  display_name: "Compose Systematic Review"
+  short_description: "Compose a scientific systematic review draft"
+  default_prompt: "Use $compose-systematic-review to compose a complete scientific systematic review draft from the staged evidence package."

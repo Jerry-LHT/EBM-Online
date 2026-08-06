@@ -1,0 +1,569 @@
+{
+  "$defs": {
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excerpt"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "RecordReportLink": {
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "record_id": {
+          "title": "Record Id",
+          "type": "string"
+        },
+        "report_id": {
+          "title": "Report Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_id",
+        "report_id",
+        "rationale",
+        "provenance"
+      ],
+      "title": "RecordReportLink",
+      "type": "object"
+    },
+    "RecordScreeningDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "advances_to_report_assessment": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Advances To Report Assessment"
+        },
+        "duplicate_of_record_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duplicate Of Record Id"
+        },
+        "protocol_criteria": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Protocol Criteria",
+          "type": "array"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "record_id": {
+          "title": "Record Id",
+          "type": "string"
+        },
+        "screening_label": {
+          "title": "Screening Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "record_id",
+        "screening_label",
+        "advances_to_report_assessment"
+      ],
+      "title": "RecordScreeningDecision",
+      "type": "object"
+    },
+    "Report": {
+      "additionalProperties": false,
+      "properties": {
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "external_identifiers": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "External Identifiers",
+          "type": "array"
+        },
+        "locators": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Locators",
+          "type": "array"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "report_id": {
+          "title": "Report Id",
+          "type": "string"
+        },
+        "report_type": {
+          "title": "Report Type",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "report_id",
+        "title",
+        "report_type"
+      ],
+      "title": "Report",
+      "type": "object"
+    },
+    "ReportDiscoveryLink": {
+      "additionalProperties": false,
+      "properties": {
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "report_id": {
+          "title": "Report Id",
+          "type": "string"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "report_id",
+        "source_id",
+        "source_type",
+        "rationale",
+        "provenance"
+      ],
+      "title": "ReportDiscoveryLink",
+      "type": "object"
+    },
+    "ReportEvidenceObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "accessed": {
+          "title": "Accessed",
+          "type": "boolean"
+        },
+        "evidence_format": {
+          "title": "Evidence Format",
+          "type": "string"
+        },
+        "locator": {
+          "title": "Locator",
+          "type": "string"
+        },
+        "observation_id": {
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "observed_at": {
+          "title": "Observed At",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "report_id": {
+          "title": "Report Id",
+          "type": "string"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "observation_id",
+        "report_id",
+        "locator",
+        "evidence_format",
+        "accessed",
+        "observed_at",
+        "summary",
+        "provenance"
+      ],
+      "title": "ReportEvidenceObservation",
+      "type": "object"
+    },
+    "SelectionConflict": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict_id": {
+          "title": "Conflict Id",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resolution"
+        },
+        "resolved": {
+          "title": "Resolved",
+          "type": "boolean"
+        },
+        "target_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "conflict_id",
+        "kind",
+        "target_ids",
+        "resolved",
+        "description"
+      ],
+      "title": "SelectionConflict",
+      "type": "object"
+    },
+    "Study": {
+      "additionalProperties": false,
+      "properties": {
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "study_id": {
+          "title": "Study Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "study_id",
+        "display_name",
+        "provenance"
+      ],
+      "title": "Study",
+      "type": "object"
+    },
+    "StudyClassification": {
+      "enum": [
+        "included",
+        "excluded",
+        "awaiting_classification",
+        "ongoing"
+      ],
+      "title": "StudyClassification",
+      "type": "string"
+    },
+    "StudyEligibilityDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "$ref": "#/$defs/StudyClassification"
+        },
+        "follow_up_actions": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Follow Up Actions",
+          "type": "array"
+        },
+        "primary_exclusion_criterion": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Primary Exclusion Criterion"
+        },
+        "provenance": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "study_id": {
+          "title": "Study Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "study_id",
+        "classification"
+      ],
+      "title": "StudyEligibilityDecision",
+      "type": "object"
+    },
+    "StudyReportLink": {
+      "additionalProperties": false,
+      "properties": {
+        "is_primary": {
+          "title": "Is Primary",
+          "type": "boolean"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Provenance",
+          "type": "array"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "report_id": {
+          "title": "Report Id",
+          "type": "string"
+        },
+        "study_id": {
+          "title": "Study Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "study_id",
+        "report_id",
+        "is_primary",
+        "rationale",
+        "provenance"
+      ],
+      "title": "StudyReportLink",
+      "type": "object"
+    }
+  },
+  "$id": "https://ebm-online.local/artifact-contracts/agent-selection-collections.v2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conflicts": {
+      "items": {
+        "$ref": "#/$defs/SelectionConflict"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "record_report_links": {
+      "items": {
+        "$ref": "#/$defs/RecordReportLink"
+      },
+      "title": "Record Report Links",
+      "type": "array"
+    },
+    "record_screening": {
+      "items": {
+        "$ref": "#/$defs/RecordScreeningDecision"
+      },
+      "title": "Record Screening",
+      "type": "array"
+    },
+    "report_discoveries": {
+      "items": {
+        "$ref": "#/$defs/ReportDiscoveryLink"
+      },
+      "title": "Report Discoveries",
+      "type": "array"
+    },
+    "report_evidence": {
+      "items": {
+        "$ref": "#/$defs/ReportEvidenceObservation"
+      },
+      "title": "Report Evidence",
+      "type": "array"
+    },
+    "reports": {
+      "items": {
+        "$ref": "#/$defs/Report"
+      },
+      "title": "Reports",
+      "type": "array"
+    },
+    "studies": {
+      "items": {
+        "$ref": "#/$defs/Study"
+      },
+      "title": "Studies",
+      "type": "array"
+    },
+    "study_decisions": {
+      "items": {
+        "$ref": "#/$defs/StudyEligibilityDecision"
+      },
+      "title": "Study Decisions",
+      "type": "array"
+    },
+    "study_report_links": {
+      "items": {
+        "$ref": "#/$defs/StudyReportLink"
+      },
+      "title": "Study Report Links",
+      "type": "array"
+    }
+  },
+  "required": [
+    "record_screening",
+    "reports",
+    "report_discoveries",
+    "record_report_links",
+    "report_evidence",
+    "studies",
+    "study_report_links",
+    "study_decisions",
+    "conflicts"
+  ],
+  "title": "SelectionCollectionsV2",
+  "type": "object"
+}

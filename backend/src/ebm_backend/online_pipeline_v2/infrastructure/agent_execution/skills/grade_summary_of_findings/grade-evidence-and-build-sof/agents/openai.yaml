@@ -1,0 +1,4 @@
+interface:
+  display_name: "GRADE and Summary of Findings"
+  short_description: "Assess certainty and build Cochrane-style SoF tables"
+  default_prompt: "Use $grade-evidence-and-build-sof to assess each planned evidence body and produce validated Summary of Findings artifacts."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Collect Study Data"
+  short_description: "Collect sourced study characteristics and results"
+  default_prompt: "Use $collect-study-data to collect Study Characteristics and Results from linked Reports."

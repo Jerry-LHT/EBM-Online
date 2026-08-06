@@ -1,0 +1,4 @@
+interface:
+  display_name: "Risk of Bias"
+  short_description: "Assess protocol-bound, result-linked risk of bias"
+  default_prompt: "Use $risk-of-bias to assess the Included Studies from the supplied Protocol, Selection Package, and completed Study Data Collection artifact."

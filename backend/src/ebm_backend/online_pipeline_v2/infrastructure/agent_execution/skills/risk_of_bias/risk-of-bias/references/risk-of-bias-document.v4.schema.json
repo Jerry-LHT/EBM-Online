@@ -1,0 +1,989 @@
+{
+  "$defs": {
+    "OverallRiskOfBiasJudgement": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_observation_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Observation Ids",
+          "type": "array"
+        },
+        "judgement": {
+          "minLength": 1,
+          "title": "Judgement",
+          "type": "string"
+        },
+        "override_rationale": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Override Rationale"
+        },
+        "proposed_judgement": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Proposed Judgement"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "minItems": 1,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "rule": {
+          "minLength": 1,
+          "title": "Rule",
+          "type": "string"
+        },
+        "support": {
+          "minLength": 1,
+          "title": "Support",
+          "type": "string"
+        }
+      },
+      "required": [
+        "judgement",
+        "rule",
+        "support",
+        "provenance"
+      ],
+      "title": "OverallRiskOfBiasJudgement",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excerpt"
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Locator"
+        },
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_type"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "RiskOfBiasAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment_id": {
+          "minLength": 1,
+          "title": "Assessment Id",
+          "type": "string"
+        },
+        "domains": {
+          "items": {
+            "$ref": "#/$defs/RiskOfBiasDomainAssessment"
+          },
+          "minItems": 1,
+          "title": "Domains",
+          "type": "array"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "method_use_id": {
+          "minLength": 1,
+          "title": "Method Use Id",
+          "type": "string"
+        },
+        "overall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OverallRiskOfBiasJudgement"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pre_assessment_sections": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RiskOfBiasAssessmentSection"
+          },
+          "title": "Pre Assessment Sections",
+          "type": "array"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "target_id": {
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "assessment_id",
+        "study_id",
+        "target_id",
+        "method_use_id",
+        "domains"
+      ],
+      "title": "RiskOfBiasAssessment",
+      "type": "object"
+    },
+    "RiskOfBiasAssessmentItem": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_observation_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Observation Ids",
+          "type": "array"
+        },
+        "item_id": {
+          "minLength": 1,
+          "title": "Item Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "minItems": 1,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "response": {
+          "minLength": 1,
+          "title": "Response",
+          "type": "string"
+        },
+        "support": {
+          "minLength": 1,
+          "title": "Support",
+          "type": "string"
+        }
+      },
+      "required": [
+        "item_id",
+        "label",
+        "response",
+        "support",
+        "provenance"
+      ],
+      "title": "RiskOfBiasAssessmentItem",
+      "type": "object"
+    },
+    "RiskOfBiasAssessmentSection": {
+      "additionalProperties": false,
+      "description": "An open standard-native preliminary, triage, or context section.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/RiskOfBiasAssessmentItem"
+          },
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        },
+        "section_id": {
+          "minLength": 1,
+          "title": "Section Id",
+          "type": "string"
+        },
+        "section_name": {
+          "minLength": 1,
+          "title": "Section Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section_id",
+        "section_name",
+        "items"
+      ],
+      "title": "RiskOfBiasAssessmentSection",
+      "type": "object"
+    },
+    "RiskOfBiasBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "complete_protocol_digest": {
+          "minLength": 1,
+          "title": "Complete Protocol Digest",
+          "type": "string"
+        },
+        "protocol_version": {
+          "minLength": 1,
+          "title": "Protocol Version",
+          "type": "string"
+        },
+        "review_id": {
+          "minLength": 1,
+          "title": "Review Id",
+          "type": "string"
+        },
+        "selection_package_digest": {
+          "minLength": 1,
+          "title": "Selection Package Digest",
+          "type": "string"
+        },
+        "selection_package_id": {
+          "minLength": 1,
+          "title": "Selection Package Id",
+          "type": "string"
+        },
+        "study_data_collection_artifact_id": {
+          "minLength": 1,
+          "title": "Study Data Collection Artifact Id",
+          "type": "string"
+        },
+        "study_data_collection_digest": {
+          "minLength": 1,
+          "title": "Study Data Collection Digest",
+          "type": "string"
+        },
+        "study_data_protocol_projection_digest": {
+          "minLength": 1,
+          "title": "Study Data Protocol Projection Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "review_id",
+        "protocol_version",
+        "complete_protocol_digest",
+        "study_data_protocol_projection_digest",
+        "selection_package_id",
+        "selection_package_digest",
+        "study_data_collection_artifact_id",
+        "study_data_collection_digest"
+      ],
+      "title": "RiskOfBiasBinding",
+      "type": "object"
+    },
+    "RiskOfBiasCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "assessed_target_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Assessed Target Ids",
+          "type": "array"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "scope": {
+          "minLength": 1,
+          "title": "Scope",
+          "type": "string"
+        },
+        "unassessed_results": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RiskOfBiasUnassessedResult"
+          },
+          "title": "Unassessed Results",
+          "type": "array"
+        }
+      },
+      "required": [
+        "scope",
+        "assessed_target_ids",
+        "rationale"
+      ],
+      "title": "RiskOfBiasCoverage",
+      "type": "object"
+    },
+    "RiskOfBiasDomainAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "applicability": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applicability"
+        },
+        "bias_direction": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bias Direction"
+        },
+        "domain_id": {
+          "minLength": 1,
+          "title": "Domain Id",
+          "type": "string"
+        },
+        "domain_name": {
+          "minLength": 1,
+          "title": "Domain Name",
+          "type": "string"
+        },
+        "evidence_observation_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Observation Ids",
+          "type": "array"
+        },
+        "judgement": {
+          "minLength": 1,
+          "title": "Judgement",
+          "type": "string"
+        },
+        "override_rationale": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Override Rationale"
+        },
+        "proposed_judgement": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Proposed Judgement"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "minItems": 1,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "signalling_responses": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RiskOfBiasSignallingResponse"
+          },
+          "title": "Signalling Responses",
+          "type": "array"
+        },
+        "support": {
+          "minLength": 1,
+          "title": "Support",
+          "type": "string"
+        }
+      },
+      "required": [
+        "domain_id",
+        "domain_name",
+        "judgement",
+        "support",
+        "provenance"
+      ],
+      "title": "RiskOfBiasDomainAssessment",
+      "type": "object"
+    },
+    "RiskOfBiasEvidenceObservation": {
+      "additionalProperties": false,
+      "description": "Scientific evidence actually inspected; route diagnostics stay outside it.",
+      "properties": {
+        "limitations": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Limitations",
+          "type": "array"
+        },
+        "locator": {
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "observation": {
+          "minLength": 1,
+          "title": "Observation",
+          "type": "string"
+        },
+        "observation_id": {
+          "minLength": 1,
+          "title": "Observation Id",
+          "type": "string"
+        },
+        "observed_at": {
+          "minLength": 1,
+          "title": "Observed At",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "minItems": 1,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "read_scope": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Read Scope",
+          "type": "array"
+        },
+        "source_identity": {
+          "minLength": 1,
+          "title": "Source Identity",
+          "type": "string"
+        },
+        "source_kind": {
+          "minLength": 1,
+          "title": "Source Kind",
+          "type": "string"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "upstream_report_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Upstream Report Id"
+        }
+      },
+      "required": [
+        "observation_id",
+        "study_id",
+        "source_kind",
+        "source_identity",
+        "locator",
+        "observed_at",
+        "read_scope",
+        "observation",
+        "provenance"
+      ],
+      "title": "RiskOfBiasEvidenceObservation",
+      "type": "object"
+    },
+    "RiskOfBiasMethodDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_source_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Authority Source Ids",
+          "type": "array"
+        },
+        "decision": {
+          "minLength": 1,
+          "title": "Decision",
+          "type": "string"
+        },
+        "decision_id": {
+          "minLength": 1,
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "topic": {
+          "minLength": 1,
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "decision_id",
+        "topic",
+        "decision",
+        "rationale"
+      ],
+      "title": "RiskOfBiasMethodDecision",
+      "type": "object"
+    },
+    "RiskOfBiasMethodUse": {
+      "additionalProperties": false,
+      "description": "One standard/version/variant actually applied by the Agent.",
+      "properties": {
+        "applicability": {
+          "minLength": 1,
+          "title": "Applicability",
+          "type": "string"
+        },
+        "applied_standard": {
+          "minLength": 1,
+          "title": "Applied Standard",
+          "type": "string"
+        },
+        "applied_variant": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applied Variant"
+        },
+        "applied_version": {
+          "minLength": 1,
+          "title": "Applied Version",
+          "type": "string"
+        },
+        "authoritative_sources": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "title": "Authoritative Sources",
+          "type": "array"
+        },
+        "basis_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "verified",
+                "llm_fallback"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Basis Status"
+        },
+        "decisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/RiskOfBiasMethodDecision"
+          },
+          "title": "Decisions",
+          "type": "array"
+        },
+        "fallback_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Model"
+        },
+        "fallback_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fallback Note"
+        },
+        "method_use_id": {
+          "minLength": 1,
+          "title": "Method Use Id",
+          "type": "string"
+        },
+        "planned_standard": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Planned Standard"
+        },
+        "protocol_conflict": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Protocol Conflict"
+        }
+      },
+      "required": [
+        "method_use_id",
+        "planned_standard",
+        "applied_standard",
+        "applied_version",
+        "applicability"
+      ],
+      "title": "RiskOfBiasMethodUse",
+      "type": "object"
+    },
+    "RiskOfBiasSignallingResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_observation_ids": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Evidence Observation Ids",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "minItems": 1,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "question": {
+          "minLength": 1,
+          "title": "Question",
+          "type": "string"
+        },
+        "question_id": {
+          "minLength": 1,
+          "title": "Question Id",
+          "type": "string"
+        },
+        "response": {
+          "minLength": 1,
+          "title": "Response",
+          "type": "string"
+        },
+        "support": {
+          "minLength": 1,
+          "title": "Support",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question_id",
+        "question",
+        "response",
+        "support",
+        "provenance"
+      ],
+      "title": "RiskOfBiasSignallingResponse",
+      "type": "object"
+    },
+    "RiskOfBiasTarget": {
+      "additionalProperties": false,
+      "description": "A Protocol-relevant result or result set selected for assessment.",
+      "properties": {
+        "analysis": {
+          "minLength": 1,
+          "title": "Analysis",
+          "type": "string"
+        },
+        "comparison": {
+          "minLength": 1,
+          "title": "Comparison",
+          "type": "string"
+        },
+        "effect_of_interest": {
+          "minLength": 1,
+          "title": "Effect Of Interest",
+          "type": "string"
+        },
+        "method_use_id": {
+          "minLength": 1,
+          "title": "Method Use Id",
+          "type": "string"
+        },
+        "outcome_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Outcome Id"
+        },
+        "outcome_measurement": {
+          "minLength": 1,
+          "title": "Outcome Measurement",
+          "type": "string"
+        },
+        "outcome_name": {
+          "minLength": 1,
+          "title": "Outcome Name",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/Provenance"
+          },
+          "minItems": 1,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "selection_rationale": {
+          "minLength": 1,
+          "title": "Selection Rationale",
+          "type": "string"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "study_result_ids": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Study Result Ids",
+          "type": "array"
+        },
+        "target_id": {
+          "minLength": 1,
+          "title": "Target Id",
+          "type": "string"
+        },
+        "timepoint": {
+          "minLength": 1,
+          "title": "Timepoint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target_id",
+        "study_id",
+        "study_result_ids",
+        "method_use_id",
+        "outcome_name",
+        "outcome_measurement",
+        "timepoint",
+        "comparison",
+        "effect_of_interest",
+        "analysis",
+        "selection_rationale",
+        "provenance"
+      ],
+      "title": "RiskOfBiasTarget",
+      "type": "object"
+    },
+    "RiskOfBiasUnassessedResult": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "study_id": {
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "study_result_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Study Result Id"
+        }
+      },
+      "required": [
+        "study_id",
+        "description",
+        "reason"
+      ],
+      "title": "RiskOfBiasUnassessedResult",
+      "type": "object"
+    }
+  },
+  "$id": "https://ebm-online.local/artifact-contracts/risk-of-bias-document.v4.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The single authoritative Agent-authored scientific artifact.",
+  "properties": {
+    "assessments": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RiskOfBiasAssessment"
+      },
+      "title": "Assessments",
+      "type": "array"
+    },
+    "binding": {
+      "$ref": "#/$defs/RiskOfBiasBinding"
+    },
+    "coverage": {
+      "$ref": "#/$defs/RiskOfBiasCoverage"
+    },
+    "evidence_observations": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RiskOfBiasEvidenceObservation"
+      },
+      "title": "Evidence Observations",
+      "type": "array"
+    },
+    "method_uses": {
+      "items": {
+        "$ref": "#/$defs/RiskOfBiasMethodUse"
+      },
+      "minItems": 1,
+      "title": "Method Uses",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "risk-of-bias-document.v4",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "targets": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/RiskOfBiasTarget"
+      },
+      "title": "Targets",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding",
+    "method_uses",
+    "coverage"
+  ],
+  "title": "RiskOfBiasDocumentV4",
+  "type": "object"
+}
