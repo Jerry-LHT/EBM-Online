@@ -1,1 +1,0 @@
-Use row-level labels or footnotes only when they justify the requested subgroup or timepoint distinction.

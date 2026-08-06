@@ -1,3 +1,0 @@
-benchmark,source_dataset,source_split,review_count,source_record_count,source_include_count,source_exclude_count,missing_title_abstract_count,missing_clinical_question_count,missing_evidence_profile_count,dataset_blocker_count,setting,example_count,include_count,exclude_count,setting_note
-q2crbench,2024 KDIGO CKD,train,9,16321,50,16271,9,0,3176,2,abstract_only,16312,50,16262,Main Q2CRBench abstract/title screening examples.
-q2crbench,2024 KDIGO CKD,train,9,16321,50,16271,9,0,3176,2,evidence_profile,13145,44,13101,Auxiliary evidence-profile setting; not full text.

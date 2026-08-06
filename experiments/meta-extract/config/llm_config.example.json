@@ -1,5 +1,0 @@
-{
-  "api_key": "<fill-your-api-key>",
-  "base_url": "https://api.zyai.online/v1",
-  "model": "gpt-5.4-mini"
-}

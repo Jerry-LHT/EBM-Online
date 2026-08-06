@@ -1,1 +1,0 @@
-Allowed direct field names: GIV Mean, GIV SE, Mean, Variance, CI start, CI end, Footnotes.

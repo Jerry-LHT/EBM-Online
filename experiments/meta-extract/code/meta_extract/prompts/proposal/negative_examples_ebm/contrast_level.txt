@@ -1,1 +1,0 @@
-Use row labels, footnotes, and forest-plot annotations only when they define the contrast-level analysis item itself.

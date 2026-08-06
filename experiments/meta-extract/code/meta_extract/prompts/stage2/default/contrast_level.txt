@@ -1,5 +1,0 @@
-Extract only the allowed contrast-level fields when they are explicitly reported for the requested item.
-Allowed direct field names: GIV Mean, GIV SE, Mean, Variance, CI start, CI end, Footnotes.
-Do not output arm-level means, SDs, Ns, case counts, weights, odds ratios, risk ratios, hazard ratios, or any other unsupported field names.
-Do not invent dichotomous or continuous arm-level fields for contrast-level settings.
-If multiple study rows are reported for the same item, return multiple predicted_rows.

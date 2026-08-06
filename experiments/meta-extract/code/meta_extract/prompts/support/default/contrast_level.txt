@@ -1,3 +1,0 @@
-Pay attention to forest-plot labels, footnotes, and row-specific follow-up notes.
-Treat row labels and row-specific notes as valid timepoint grounding when they clearly correspond to the reported estimate after normalization.
-Only reject support when the timing mention is generic background context rather than something attached to the reported result row.

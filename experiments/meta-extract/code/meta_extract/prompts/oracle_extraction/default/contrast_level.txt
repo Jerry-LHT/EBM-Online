@@ -1,6 +1,0 @@
-Allowed direct field names: GIV Mean, GIV SE, Mean, Variance, CI start, CI end, Footnotes.
-Only emit contrast-level fields that are explicitly supported for this official item.
-Select only the contrast row or rows that match the official_item result definition; do not emit neighboring rows from the same table just because they look similar.
-Do not split one contrast row into multiple predicted rows unless the study reports distinct rows for the same official item.
-When confidence interval bounds are reported without GIV SE or Variance, return CI start and CI end if they are allowed and explicit.
-Use Footnotes only for row-specific notes that belong to the extracted contrast row, not for arm labels or section headers.

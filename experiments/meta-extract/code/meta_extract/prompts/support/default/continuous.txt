@@ -1,3 +1,0 @@
-Pay attention to follow-up timing phrases, change-from-baseline wording, and subgroup wording.
-Treat a timepoint as supported when the reported result, endpoint label, table row, or row-specific note clearly corresponds to that follow-up after normalization.
-Do not treat generic trial duration or repeated-visit schedules as support unless the result itself is tied to that timepoint.

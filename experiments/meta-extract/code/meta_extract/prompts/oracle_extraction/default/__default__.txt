@@ -1,1 +1,0 @@
-Base task: benchmark2-v2 Oracle Extraction for one official analysis item.

@@ -1,3 +1,0 @@
-split,doc_count,token_count,p_span_count,i_span_count,o_span_count,overlap_doc_count,overlap_token_count
-train,4794,1303076,16931,32313,32712,2827,21588
-test,191,51784,632,1724,1793,58,340

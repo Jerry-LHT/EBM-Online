@@ -1,7 +1,0 @@
-default_provider: openai
-prompt_version: v0
-output_root: results
-high_confidence_threshold: 0.8
-default_temperature: 0.0
-default_max_tokens: 1200
-default_max_retries: 2

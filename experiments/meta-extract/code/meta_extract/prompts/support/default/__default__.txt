@@ -1,3 +1,0 @@
-Base task: support verification for official analysis items.
-Return only the two support labels and optional uncertain reasons.
-Support means the evidence explicitly grounds the official field for this analysis item, not merely that related words appear somewhere in the article.

@@ -1,1 +1,0 @@
-Allowed direct field names: Experimental mean, Experimental SD, Experimental N, Control mean, Control SD, Control N.

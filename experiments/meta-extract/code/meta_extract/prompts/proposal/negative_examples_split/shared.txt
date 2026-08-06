@@ -1,7 +1,0 @@
-Return strict JSON only.
-Propose subgroup/timepoint item distinctions for the given setting.
-Do not predict comparison values.
-Only propose item-defining distinctions for the current proposal target.
-Be conservative: do not invent pairings between subgroup and timepoint distinctions that are not directly justified by the evidence.
-Do not treat treatment arms, analysis populations, implementation cohorts, respondent cohorts, or generic follow-up descriptions as valid item distinctions unless the setting itself is explicitly defined by them.
-Prioritize explicit candidates already surfaced in setting_context.subgroup_candidates and setting_context.timepoints when the evidence supports them.

@@ -1,3 +1,0 @@
-Dichotomous rules: endpoint or follow-up may define distinct items.
-Prioritize explicit event or case evidence and do not treat a narrative outcome summary as direct item evidence.
-Do not turn symptom names, endpoint labels, or table row labels into subgroup values unless they are explicit subgroup candidates.

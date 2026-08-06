@@ -1,6 +1,0 @@
-Extract only direct study-arm event counts and arm totals.
-Allowed direct field names: Experimental cases, Experimental N, Control cases, Control N.
-Do not output means or standard deviations for dichotomous settings.
-Map values to the requested experimental/control arms before emitting them.
-Prefer complete rows with cases and N for both arms whenever the evidence supports them.
-Do not output odds ratios, risk ratios, confidence intervals, weights, or narrative summaries.

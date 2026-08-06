@@ -1,1 +1,0 @@
-Prefer subgroup or timepoint distinctions only when they define the analyzed continuous result, not merely a reported sample or visit label.

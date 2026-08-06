@@ -1,6 +1,0 @@
-Allowed direct field names: Experimental mean, Experimental SD, Experimental N, Control mean, Control SD, Control N.
-Extract mean, SD, and N for the requested comparison only.
-Use values from the same reported result row or cell group; do not assemble a row from scattered numbers.
-Keep subgroup and timepoint alignment consistent within each predicted row.
-Do not use sample-size-only rows, treatment-arm description rows, or cohort header rows as outcome rows.
-Do not merge values from different timepoints, subgroups, or row variants into one predicted row.

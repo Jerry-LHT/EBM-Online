@@ -1,5 +1,0 @@
-scope,name,question_count,source_dataset_count,p_non_empty_rate,i_non_empty_rate,c_non_empty_rate,o_non_empty_rate
-all,all,99,3,1.0,1.0,1.0,0.5151515151515151
-dataset,2020 EAN Dementia,9,1,1.0,1.0,1.0,1.0
-dataset,2021 ACR RA,81,1,1.0,1.0,1.0,0.4074074074074074
-dataset,2024 KDIGO CKD,9,1,1.0,1.0,1.0,1.0

@@ -1,1 +1,0 @@
-General rules: stay conservative and only return supported items.

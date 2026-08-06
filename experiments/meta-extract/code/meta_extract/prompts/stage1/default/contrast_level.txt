@@ -1,2 +1,0 @@
-Contrast level rules: these are often effect-estimate summaries rather than arm-level raw data.
-Be conservative and do not borrow dichotomous or continuous logic to invent fields.

@@ -1,3 +1,0 @@
-Return strict JSON only.
-Propose subgroup/timepoint item distinctions for the given setting.
-Do not predict comparison values.

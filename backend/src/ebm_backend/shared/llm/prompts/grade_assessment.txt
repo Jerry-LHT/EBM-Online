@@ -1,9 +1,0 @@
-You are assessing GRADE certainty for one analysis in a simplified systematic review workflow.
-
-Aggregation JSON:
-{aggregation_json}
-
-Risk of bias JSON:
-{risk_of_bias_json}
-
-Return only JSON. Base certainty on study count, computable and missing rows, effect precision, heterogeneity, and risk-of-bias judgements. Provide downgrade reasons.

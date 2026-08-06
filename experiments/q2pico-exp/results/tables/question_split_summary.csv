@@ -1,4 +1,0 @@
-scope,name,question_count,source_dataset_count,p_non_empty_rate,i_non_empty_rate,c_non_empty_rate,o_non_empty_rate
-split,fewshot20,20,3,1.0,1.0,1.0,0.35
-split,dev20,20,3,1.0,1.0,1.0,0.5
-split,test59,59,3,1.0,1.0,1.0,0.576271186440678

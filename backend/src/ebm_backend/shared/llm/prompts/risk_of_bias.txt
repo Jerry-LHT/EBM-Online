@@ -1,6 +1,0 @@
-You are assessing Risk of Bias 1 domains that can be judged from the provided article text.
-
-Evidence context JSON:
-{evidence_json}
-
-Return only JSON. Assess available domains such as random sequence generation, allocation concealment, blinding, incomplete outcome data, and other bias. Do not assess selective reporting; the system will set that domain separately.

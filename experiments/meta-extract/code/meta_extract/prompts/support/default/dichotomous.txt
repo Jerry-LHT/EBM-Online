@@ -1,3 +1,0 @@
-Pay attention to event reporting windows and explicit population qualifiers.
-Treat abstinence windows, endpoint labels, and table/result rows as timepoint support when they clearly define the reported result timing for the official item.
-Do not treat a general follow-up schedule or eligibility population as automatic support unless it is clearly the analysis slice for the official item.

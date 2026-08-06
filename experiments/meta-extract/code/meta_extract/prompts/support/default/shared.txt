@@ -1,7 +1,0 @@
-Return strict JSON only.
-Judge support for the official subgroup and timepoint separately.
-Treat the official_item values as the target fields to verify, even when the subgroup string looks like a comparison label, duration label, or other non-canonical phrase.
-For subgroup support, require explicit evidence that the result is for that subgroup, stratum, population qualifier, arm-defined subset, or analysis slice. Baseline/sample description alone is not enough.
-For timepoint support, require evidence that the reported result corresponds to the official_item timepoint. Generic follow-up mentions, study duration, visit schedules, or measurement windows do not automatically support the official timepoint.
-If the official item has subgroup=null or timepoints=[], that is an incomplete negative label from the benchmark. Interpret not_supported conservatively: it means the current official item does not carry that field, not that the article text proves the field is absent everywhere.
-Use uncertain only for insufficient evidence, timepoint granularity mismatch, or multiple plausible interpretations. Do not use uncertain as a generic low-confidence fallback.

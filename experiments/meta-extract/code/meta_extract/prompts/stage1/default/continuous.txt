@@ -1,2 +1,0 @@
-Continuous rules: pay attention to scale names, visit labels, final-value versus change-score wording, and multiple assessment timepoints.
-Do not merge distinct visits.

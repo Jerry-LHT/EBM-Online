@@ -1,5 +1,0 @@
-Allowed direct field names: Experimental cases, Experimental N, Control cases, Control N.
-Extract arm-level event counts and denominators for the requested comparison only.
-Use counts from the reported result row, not from unrelated baseline/sample rows.
-Do not treat pooled summaries, odds ratios, risk ratios, confidence intervals, or narrative significance statements as direct rows unless the schema explicitly allows them.
-Map values to experimental and control arms carefully; do not swap arms or copy the same count into both arms.
