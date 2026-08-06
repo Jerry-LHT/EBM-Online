@@ -1,2 +1,0 @@
-"""Beyond Abstracts benchmark tests."""
-

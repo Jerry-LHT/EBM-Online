@@ -1,7 +1,0 @@
-slot_id,domain,correct,total,accuracy
-random_sequence_generation,Random sequence generation (selection bias),15,19,0.7895
-allocation_concealment,Allocation concealment (selection bias),10,19,0.5263
-blinding_participants,Blinding of participants and personnel (performance bias),8,15,0.5333
-blinding_outcome,Blinding of outcome assessment (detection bias),10,17,0.5882
-incomplete_outcome,Incomplete outcome data (attrition bias),10,19,0.5263
-OVERALL,OVERALL,53,89,0.5955

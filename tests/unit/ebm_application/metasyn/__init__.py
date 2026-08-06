@@ -1,2 +1,0 @@
-"""MetaSyn benchmark tests."""
-

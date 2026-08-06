@@ -1,8 +1,0 @@
-[
-  {
-    "path": "/Users/qimingzhu/Desktop/agent/medical_agent/rob_cleaned_dataset/23148458.json",
-    "pmid": "23148458",
-    "mode": "strict",
-    "error": "JSONDecodeError('Expecting value: line 12 column 16 (char 609)')"
-  }
-]
